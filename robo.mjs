@@ -9,7 +9,7 @@
 // Vídeo gravado vira simulação: o robô "vive" na data e hora em que o debate passou ao vivo.
 // Teclas: a = automático (voz) · 1 / 2 / 0 = força candidato A / B / mediador
 import { spawn, execFile, execFileSync } from 'node:child_process'
-import { readFileSync, writeFileSync, mkdirSync, rmSync, existsSync } from 'node:fs'
+import { readFileSync, writeFileSync, appendFileSync, mkdirSync, rmSync, existsSync } from 'node:fs'
 import { createInterface } from 'node:readline'
 import { parseArgs } from 'node:util'
 import { lerWav, carregarVozes, quemFala, rotular, reforcar } from './voz.mjs'
@@ -22,6 +22,13 @@ const { values: arg, positionals } = parseArgs({ allowPositionals: true, options
   continuar: { type: 'boolean', default: false },
   limite: { type: 'string', default: '1' },
 } })
+// Tudo que aparece na tela também vai para tmp/robo.log, para acompanhar o debate de fora (bugs, quedas, gasto)
+mkdirSync('tmp', { recursive: true })
+for (const k of ['log', 'error']) {
+  const tela = console[k]
+  console[k] = (...a) => { tela(...a); try { appendFileSync('tmp/robo.log', `${new Date().toLocaleTimeString('pt-BR')} ${k === 'error' ? 'ERRO ' : ''}${a.join(' ').trim()}\n`) } catch {} }
+}
+
 const URL_VIDEO = positionals[0]
 if (!URL_VIDEO) throw new Error('Passe a URL do YouTube')
 

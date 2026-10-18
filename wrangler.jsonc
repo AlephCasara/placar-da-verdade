@@ -2,6 +2,7 @@
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "placar-da-verdade",
   "main": "worker.js",
+  "routes": [{ "pattern": "placar.zenithonacademy.com.br", "custom_domain": true }],
   "compatibility_date": "2026-10-12",
   "observability": {
     "enabled": true

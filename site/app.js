@@ -1,5 +1,5 @@
 const LOCAL = location.hostname === 'localhost' || location.hostname === '127.0.0.1'
-const PLACAR = LOCAL ? 'placar.json' : 'https://pub-9ba39942d63f4361970d17b4da23b71b.r2.dev/placar.json'
+const PLACAR = LOCAL ? 'placar.json' : 'https://placar-dados.zenithonacademy.com.br/placar.json'
 const ROTULO = { verdadeiro: 'Verdadeiro', impreciso: 'Impreciso', falso: 'Falso', sem_dados: 'Sem dados' }
 const $ = id => document.getElementById(id)
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => `&#${c.charCodeAt(0)};`)
