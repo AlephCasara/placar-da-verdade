@@ -1,6 +1,7 @@
 // Reconhecimento de voz dos candidatos: compara a "impressão digital" da voz (embedding) de cada
 // janela de 2s com as vozes cadastradas antes do debate. Roda local, grátis, ~35ms por janela.
 // Modelo: 3D-Speaker CAM++ zh_en (sherpa-onnx), em modelos/voz.onnx. No debate de 2022 acertou 124/124 janelas.
+// Baixar: curl -L -o modelos/voz.onnx https://github.com/k2-fsa/sherpa-onnx/releases/download/speaker-recongition-models/3dspeaker_speech_campplus_sv_zh_en_16k-common_advanced.onnx
 //
 // Cadastrar (antes do debate, 1–3 min de fala limpa de cada um, de qualquer vídeo do YouTube):
 //   node voz.mjs cadastrar <nome> <url-youtube> <inicio-seg> <fim-seg>   (pode repetir para somar trechos)
