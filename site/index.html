@@ -4,9 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Placar da Verdade — debate ao vivo</title>
-<meta name="description" content="Cada afirmação dos candidatos no debate, checada por IA em tempo real, com a fonte ao lado.">
+<meta name="description" content="Os fatos citados no debate, checados por IA em tempo real, com a fonte ao lado.">
 <meta property="og:title" content="Placar da Verdade — debate ao vivo">
-<meta property="og:description" content="Quem falou mais verdade no debate? Checagem automática, fala por fala, com fonte.">
+<meta property="og:description" content="Quem errou mais no debate? O Mentirômetro mostra, fato por fato, com fonte.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&display=swap" rel="stylesheet">
@@ -28,32 +28,40 @@
     font: 400 1rem/1.5 "Archivo", system-ui, sans-serif;
   }
   a { color: inherit; }
-  a:focus-visible, button:focus-visible { outline: 3px solid var(--tinta); outline-offset: 2px; }
+  a:focus-visible { outline: 3px solid var(--tinta); outline-offset: 2px; }
   .pagina { max-width: 1180px; margin: 0 auto; padding: 16px; }
 
-  header { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+  header { display: flex; align-items: center; justify-content: space-between; gap: 8px 16px; flex-wrap: wrap; margin-bottom: 16px; }
   h1 { margin: 0; font-size: clamp(1.9rem, 5vw, 3rem); font-weight: 900; font-stretch: 62%; line-height: 1; letter-spacing: -0.01em; }
-  .status { display: flex; align-items: center; gap: 8px; font-size: .9rem; color: var(--apagado); }
+  .sinais { display: flex; gap: 16px; flex-wrap: wrap; font-size: .9rem; color: var(--apagado); }
+  .status { display: flex; align-items: center; gap: 8px; }
   .ponto { width: 10px; height: 10px; border-radius: 50%; background: var(--borda); }
   .status.vivo .ponto { background: var(--falso); animation: pulsa 1.6s infinite; }
   .status.vivo strong { color: var(--falso); }
   @keyframes pulsa { 50% { opacity: .25; } }
+  #audiencia b { color: var(--tinta); font-variant-numeric: tabular-nums; }
 
   .topo { display: grid; grid-template-columns: 1.5fr 1fr; gap: 16px; }
   .video { aspect-ratio: 16/9; background: var(--tinta); border-radius: 10px; overflow: hidden; }
   .video iframe { width: 100%; height: 100%; border: 0; display: block; }
 
   /* visor da urna */
-  .visor { background: var(--tela); border: 2px solid var(--borda); border-radius: 10px; padding: 16px; display: grid; gap: 18px; align-content: start; }
-  .cand h2 { margin: 0; font-size: 1.5rem; font-weight: 800; font-stretch: 75%; }
-  .linha { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
-  .pct { font-size: clamp(3rem, 8vw, 4.5rem); font-weight: 900; font-stretch: 62%; line-height: .9; font-variant-numeric: tabular-nums; color: var(--verdadeiro); }
-  .pct small { font-size: .4em; font-weight: 700; }
-  .rotulo { font-size: .85rem; color: var(--apagado); }
-  .barra { display: flex; height: 14px; border-radius: 7px; overflow: hidden; background: var(--fundo); margin-top: 6px; }
+  .visor { background: var(--tela); border: 2px solid var(--borda); border-radius: 10px; padding: 16px; display: grid; gap: 14px; align-content: start; }
+  .mentirometro h2 { margin: 0; font-size: 1.6rem; font-weight: 900; font-stretch: 62%; text-align: center; }
+  .mentirometro svg { display: block; width: 100%; max-width: 300px; margin: 0 auto; }
+  .ponteiro { transition: transform 1s cubic-bezier(.3, 1.5, .5, 1); transform-origin: 150px 150px; }
+  .veredito-medidor { text-align: center; font-weight: 800; font-stretch: 75%; font-size: 1.1rem; margin-top: -4px; }
+  .veredito-medidor small { display: block; font-weight: 400; font-stretch: 100%; font-size: .8rem; color: var(--apagado); }
+  .cands { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .cand h3 { margin: 0; font-size: 1.25rem; font-weight: 800; font-stretch: 75%; }
+  .cand:last-child { text-align: right; }
+  .pct { font-size: 2.6rem; font-weight: 900; font-stretch: 62%; line-height: 1; font-variant-numeric: tabular-nums; color: var(--falso); }
+  .pct small { font-size: .45em; font-weight: 700; }
+  .barra { display: flex; height: 10px; border-radius: 5px; overflow: hidden; background: var(--fundo); margin-top: 6px; }
+  .cand:last-child .barra { flex-direction: row-reverse; }
   .barra span { transition: flex-grow .6s ease; }
   .barra .v { background: var(--verdadeiro); } .barra .i { background: var(--impreciso); } .barra .f { background: var(--falso); }
-  .contagem { font-size: .85rem; color: var(--apagado); margin-top: 4px; font-variant-numeric: tabular-nums; }
+  .contagem { font-size: .8rem; color: var(--apagado); margin-top: 4px; font-variant-numeric: tabular-nums; }
 
   /* teclas de veredito: o elemento-assinatura */
   .tecla {
@@ -67,21 +75,27 @@
   .tecla.sem_dados { background: var(--sem-dados); color: var(--tinta); border: 1px solid var(--borda); }
 
   .meio { display: grid; grid-template-columns: 1.5fr 1fr; gap: 16px; margin-top: 16px; align-items: start; }
-  h3 { margin: 0 0 8px; font-size: 1.15rem; font-weight: 800; font-stretch: 75%; }
-  .falas { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
-  .fala { background: var(--tela); border-radius: 10px; padding: 12px 14px; border-left: 6px solid var(--borda); }
-  .fala.verdadeiro { border-left-color: var(--verdadeiro); } .fala.impreciso { border-left-color: var(--impreciso); } .fala.falso { border-left-color: var(--falso); }
-  .fala.nova { animation: entra .5s ease-out; }
+  h2.secao { margin: 0 0 8px; font-size: 1.3rem; font-weight: 800; font-stretch: 75%; }
+  .fatos { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+  .fato { background: var(--tela); border-radius: 10px; padding: 14px; }
+  .fato.novo { animation: entra .5s ease-out; }
   @keyframes entra { from { transform: translateY(-6px); opacity: 0; } }
-  .fala .cab { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: .85rem; color: var(--apagado); }
-  .fala .cab b { color: var(--tinta); font-size: .95rem; }
-  .fala q { display: block; margin: 6px 0 4px; font-size: 1.05rem; max-width: 70ch; }
-  .fala .motivo { margin: 0 0 4px; font-size: .95rem; max-width: 70ch; }
-  .fala .fonte { font-size: .85rem; color: var(--apagado); }
+  .fato h3 { margin: 0 0 8px; font-size: 1.2rem; font-weight: 900; font-stretch: 62%; }
+  .decl { border-left: 5px solid var(--borda); padding: 4px 0 4px 12px; }
+  .decl + .decl { margin-top: 12px; }
+  .decl.verdadeiro { border-left-color: var(--verdadeiro); } .decl.impreciso { border-left-color: var(--impreciso); } .decl.falso { border-left-color: var(--falso); }
+  .decl .cab { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: .85rem; color: var(--apagado); }
+  .decl .cab b { color: var(--tinta); font-size: 1rem; }
+  .decl .disse { margin: 6px 0 2px; font-size: 1.05rem; max-width: 68ch; }
+  .decl .ctx { margin: 0 0 6px; font-size: .85rem; color: var(--apagado); }
+  .decl .motivo { margin: 0 0 4px; max-width: 68ch; }
+  .decl .motivo::before { content: "Os dados: "; font-weight: 700; }
+  .decl .fonte { font-size: .85rem; color: var(--apagado); }
   .vazio { background: var(--tela); border-radius: 10px; padding: 20px; color: var(--apagado); }
 
   aside { display: grid; gap: 16px; }
   .caixa { background: var(--tela); border-radius: 10px; padding: 14px 16px; font-size: .92rem; }
+  .caixa h2 { margin: 0 0 8px; font-size: 1.15rem; font-weight: 800; font-stretch: 75%; }
   .caixa p { margin: 0 0 8px; } .caixa p:last-child { margin: 0; }
   .legenda { display: grid; gap: 6px; margin: 8px 0; }
   .legenda div { display: flex; gap: 10px; align-items: center; }
@@ -90,7 +104,6 @@
 
   @media (max-width: 820px) {
     .topo, .meio { grid-template-columns: minmax(0, 1fr); }
-    .visor { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
   }
   @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
 </style>
@@ -99,38 +112,56 @@
 <div class="pagina">
   <header>
     <h1>Placar da Verdade</h1>
-    <div class="status" id="status"><span class="ponto"></span><span id="status-texto">Conectando…</span></div>
+    <div class="sinais">
+      <span id="audiencia" hidden></span>
+      <div class="status" id="status"><span class="ponto"></span><span id="status-texto">Conectando…</span></div>
+    </div>
   </header>
 
   <section class="topo">
     <div class="video" id="video"></div>
-    <div class="visor" id="visor" aria-live="polite"></div>
+    <div class="visor" aria-live="polite">
+      <div class="mentirometro">
+        <h2>Mentirômetro</h2>
+        <svg viewBox="0 0 300 170" role="img" id="medidor" aria-label="Mentirômetro">
+          <path d="M30 150 A120 120 0 0 1 90 46" fill="none" stroke="var(--falso)" stroke-width="22"/>
+          <path d="M90 46 A120 120 0 0 1 210 46" fill="none" stroke="var(--borda)" stroke-width="22"/>
+          <path d="M210 46 A120 120 0 0 1 270 150" fill="none" stroke="var(--falso)" stroke-width="22"/>
+          <text x="28" y="168" font-size="13" font-weight="700" id="lado-a" text-anchor="start"></text>
+          <text x="272" y="168" font-size="13" font-weight="700" id="lado-b" text-anchor="end"></text>
+          <g class="ponteiro" id="ponteiro"><path d="M150 150 L146 148 L150 48 L154 148 Z" fill="var(--tinta)"/></g>
+          <circle cx="150" cy="150" r="10" fill="var(--tinta)"/>
+        </svg>
+        <div class="veredito-medidor" id="medidor-texto"></div>
+      </div>
+      <div class="cands" id="cands"></div>
+    </div>
   </section>
 
   <section class="meio">
     <div>
-      <h3>Fala por fala</h3>
-      <ol class="falas" id="falas"></ol>
+      <h2 class="secao">Fatos checados</h2>
+      <ol class="fatos" id="fatos"></ol>
     </div>
     <aside>
       <div class="caixa">
-        <h3>Como ler o placar</h3>
+        <h2>Como ler</h2>
         <div class="legenda">
-          <div><span class="tecla verdadeiro">Verdadeiro</span> os fatos confirmam</div>
+          <div><span class="tecla verdadeiro">Verdadeiro</span> os dados confirmam</div>
           <div><span class="tecla impreciso">Impreciso</span> exagerado ou fora de contexto</div>
-          <div><span class="tecla falso">Falso</span> os fatos contradizem</div>
+          <div><span class="tecla falso">Falso</span> os dados contradizem</div>
           <div><span class="tecla sem_dados">Sem dados</span> não deu para verificar</div>
         </div>
-        <p>A porcentagem conta só as falas com veredito. "Sem dados" fica de fora.</p>
+        <p>O Mentirômetro pende para quem teve mais afirmações falsas ou imprecisas (imprecisa conta meio ponto). "Sem dados" fica de fora.</p>
       </div>
       <div class="caixa">
-        <h3>Como funciona</h3>
-        <p>O áudio do debate é transcrito a cada 10 segundos. Uma IA (Jev) separa as afirmações que dão para checar. Outra IA busca cada uma na web, em agências de checagem, imprensa e dados oficiais, e dá o veredito com a fonte.</p>
-        <p>As mesmas regras valem para os dois candidatos.</p>
-        <p><strong>É uma checagem automática e pode errar.</strong> Confira a fonte de cada fala antes de compartilhar.</p>
+        <h2>Como funciona</h2>
+        <p>O áudio do debate é transcrito a cada 10 segundos e a voz identifica quem está falando. Uma IA separa só as afirmações que valem checagem: números, dados, atos de governo. Retórica e opinião ficam de fora.</p>
+        <p>Cada afirmação é buscada na web (agências de checagem, imprensa e dados oficiais) e julgada com as mesmas regras para os dois candidatos.</p>
+        <p><strong>É uma checagem automática e pode errar.</strong> Confira a fonte antes de compartilhar.</p>
       </div>
       <div class="caixa">
-        <h3>Mostre o placar</h3>
+        <h2>Mostre o placar</h2>
         <div class="compartilhar">
           <a id="share-x" target="_blank" rel="noopener">Postar no X</a>
           <a id="share-zap" target="_blank" rel="noopener">Enviar no WhatsApp</a>
@@ -141,22 +172,23 @@
 </div>
 
 <script>
-const PLACAR = location.hostname === 'localhost' || location.hostname === '127.0.0.1'
-  ? 'placar.json'
-  : 'https://pub-9ba39942d63f4361970d17b4da23b71b.r2.dev/placar.json'
+const LOCAL = location.hostname === 'localhost' || location.hostname === '127.0.0.1'
+const PLACAR = LOCAL ? 'placar.json' : 'https://pub-9ba39942d63f4361970d17b4da23b71b.r2.dev/placar.json'
 const ROTULO = { verdadeiro: 'Verdadeiro', impreciso: 'Impreciso', falso: 'Falso', sem_dados: 'Sem dados' }
 const $ = id => document.getElementById(id)
-const esc = s => String(s).replace(/[&<>"']/g, c => `&#${c.charCodeAt(0)};`)
-let dados = null, vistas = new Set(), videoPronto = false
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => `&#${c.charCodeAt(0)};`)
+const host = url => { try { return new URL(url).hostname.replace(/^www\./, '') } catch { return '' } }
+let dados = null, vistos = new Set(), videoPronto = false
 
-function pct(c) {
+function conta(c) {
   const total = c.verdadeiro + c.impreciso + c.falso
   const p = k => total ? Math.round(c[k] / total * 100) : 0
-  return { total, v: p('verdadeiro'), i: p('impreciso'), f: p('falso') }
+  // índice de erro: falso vale 1, impreciso vale 0,5
+  return { total, v: p('verdadeiro'), i: p('impreciso'), f: p('falso'), erro: total ? (c.falso + c.impreciso / 2) / total : 0 }
 }
 
 function desenhar() {
-  const d = dados
+  const d = dados, [A, B] = Object.values(d.candidatos), ca = conta(A), cb = conta(B)
   if (!videoPronto && d.video?.id) {
     const inicio = d.video.ao_vivo ? 0 : Math.round(d.video.inicio + (Date.now() - d.video.t0) / 1000)
     $('video').innerHTML = `<iframe src="https://www.youtube.com/embed/${encodeURIComponent(d.video.id)}?autoplay=1&mute=1&start=${inicio}"
@@ -164,42 +196,52 @@ function desenhar() {
     videoPronto = true
   }
 
-  $('visor').innerHTML = Object.values(d.candidatos).map(c => {
-    const p = pct(c)
-    return `<div class="cand">
-      <h2>${esc(c.nome)}</h2>
-      <div class="linha"><span class="pct">${p.total ? p.v : '–'}<small>%</small></span><span class="rotulo">verdadeiro</span></div>
+  // Mentirômetro: ponteiro para a esquerda = A erra mais, centro = empate, direita = B erra mais
+  const angulo = (ca.total && cb.total) ? Math.max(-80, Math.min(80, (cb.erro - ca.erro) * 160)) : 0
+  $('ponteiro').style.transform = `rotate(${angulo}deg)`
+  $('lado-a').textContent = A.nome; $('lado-b').textContent = B.nome
+  const dif = Math.abs(ca.erro - cb.erro)
+  $('medidor-texto').innerHTML = !(ca.total && cb.total) ? 'Esperando os primeiros fatos<small>precisa de pelo menos um fato checado de cada lado</small>'
+    : dif < 0.1 ? 'Empate técnico<small>os dois erram parecido até agora</small>'
+    : `${esc(ca.erro > cb.erro ? A.nome : B.nome)} está errando mais<small>${Math.round(Math.max(ca.erro, cb.erro) * 100)}% contra ${Math.round(Math.min(ca.erro, cb.erro) * 100)}% de índice de erro</small>`
+  $('medidor').setAttribute('aria-label', `Mentirômetro: ${A.nome} ${Math.round(ca.erro * 100)}% de erro, ${B.nome} ${Math.round(cb.erro * 100)}%`)
+
+  $('cands').innerHTML = [[A, ca], [B, cb]].map(([c, p]) => `<div class="cand">
+      <h3>${esc(c.nome)}</h3>
+      <div class="pct">${p.total ? Math.round(p.erro * 100) : '–'}<small>% de erro</small></div>
       <div class="barra" role="img" aria-label="${p.v}% verdadeiro, ${p.i}% impreciso, ${p.f}% falso">
         <span class="v" style="flex-grow:${p.v}"></span><span class="i" style="flex-grow:${p.i}"></span><span class="f" style="flex-grow:${p.f}"></span>
       </div>
-      <div class="contagem">${p.i}% impreciso · ${p.f}% falso<br>${p.total} falas checadas · ${c.sem_dados} sem dados</div>
-    </div>`
-  }).join('')
+      <div class="contagem">${c.verdadeiro} verdadeiro · ${c.impreciso} impreciso · ${c.falso} falso<br>${c.sem_dados} sem dados</div>
+    </div>`).join('')
 
-  $('falas').innerHTML = d.falas.length ? d.falas.map(f => {
-    const id = f.t + f.frase.slice(0, 20), nova = vistas.size && !vistas.has(id)
-    vistas.add(id)
-    return `<li class="fala ${f.veredito}${nova ? ' nova' : ''}">
-      <div class="cab"><span class="tecla ${f.veredito}">${ROTULO[f.veredito]}</span><b>${esc(d.candidatos[f.quem].nome)}</b>
-        <span>${new Date(f.t).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span></div>
-      <q>${esc(f.frase)}</q>
-      ${f.motivo ? `<p class="motivo">${esc(f.motivo)}</p>` : ''}
-      <div class="fonte">${f.fonte ? `Fonte: <a href="${esc(f.fonte.url)}" target="_blank" rel="noopener">${esc(f.fonte.titulo)}</a> (${esc(new URL(f.fonte.url).hostname.replace(/^www\./, ''))})` : 'Nenhuma fonte encontrada.'}</div>
-    </li>`
-  }).join('') : '<li class="vazio">O placar começa na primeira afirmação que der para checar. Fique de olho.</li>'
+  $('fatos').innerHTML = d.fatos?.length ? d.fatos.map(f => {
+    const novo = vistos.size && !vistos.has(f.tema + f.declaracoes.length)
+    vistos.add(f.tema + f.declaracoes.length)
+    return `<li class="fato${novo ? ' novo' : ''}"><h3>${esc(f.tema)}</h3>${f.declaracoes.map(x => `
+      <div class="decl ${x.veredito}">
+        <div class="cab"><span class="tecla ${x.veredito}">${ROTULO[x.veredito]}</span><b>${esc(d.candidatos[x.quem].nome)}</b>
+          <span>${new Date(x.t).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' })}</span></div>
+        <p class="disse">${esc(x.afirmacao)}</p>
+        ${x.contexto ? `<p class="ctx">${esc(x.contexto)}</p>` : ''}
+        ${x.motivo ? `<p class="motivo">${esc(x.motivo)}</p>` : ''}
+        <div class="fonte">${x.fonte ? `Fonte: <a href="${esc(x.fonte.url)}" target="_blank" rel="noopener">${esc(x.fonte.titulo)}</a> (${esc(host(x.fonte.url))})` : 'Nenhuma fonte encontrada.'}</div>
+      </div>`).join('')}</li>`
+  }).join('') : '<li class="vazio">Os fatos aparecem aqui quando um candidato citar um dado que dá para checar.</li>'
 
-  const resumo = Object.values(d.candidatos).map(c => `${c.nome}: ${pct(c).total ? pct(c).v + '%' : '–'} verdadeiro`).join(' | ')
-  const texto = encodeURIComponent(`Placar da Verdade do debate, ao vivo. ${resumo}\n${location.href}`)
+  const resumo = `${A.nome} ${ca.total ? Math.round(ca.erro * 100) + '%' : '–'} x ${B.nome} ${cb.total ? Math.round(cb.erro * 100) + '%' : '–'} de erro`
+  const texto = encodeURIComponent(`Mentirômetro do debate, ao vivo: ${resumo}\n${location.href}`)
   $('share-x').href = `https://x.com/intent/post?text=${texto}`
   $('share-zap').href = `https://wa.me/?text=${texto}`
 }
 
 function relogio() {
   if (!dados) return
-  const s = Math.round((Date.now() - dados.atualizado) / 1000)
-  const vivo = s < 120
+  const s = Math.round((Date.now() - dados.atualizado) / 1000), vivo = s < 120
   $('status').classList.toggle('vivo', vivo)
-  $('status-texto').innerHTML = vivo ? `<strong>Ao vivo</strong> · checagem ~15s atrás da TV` : `Última atualização há ${Math.round(s / 60)} min`
+  const reprise = dados.video && !dados.video.ao_vivo
+    ? ` · reprise do debate de ${new Date(dados.video.data).toLocaleDateString('pt-BR')}` : ''
+  $('status-texto').innerHTML = vivo ? `<strong>Ao vivo</strong> · checagem ~30s atrás da TV${reprise}` : `Última atualização há ${Math.round(s / 60)} min`
 }
 
 async function buscar() {
@@ -207,11 +249,24 @@ async function buscar() {
     const r = await fetch(`${PLACAR}?t=${Math.floor(Date.now() / 3000)}`)
     if (!r.ok) throw new Error(r.status)
     const novo = await r.json()
-    if (!dados || novo.atualizado !== dados.atualizado) { dados = novo; desenhar() }
+    if (novo.candidatos && (!dados || novo.atualizado !== dados.atualizado)) { dados = novo; desenhar() }
   } catch { if (!dados) $('status-texto').textContent = 'Sem conexão com o placar. Tentando de novo…' }
   relogio()
 }
 buscar(); setInterval(buscar, 4000)
+
+// Quantas pessoas estão com o site aberto agora
+function audiencia(espera = 2000) {
+  if (LOCAL) return
+  const ws = new WebSocket(`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/ao-vivo`)
+  ws.onmessage = e => {
+    const n = +e.data
+    $('audiencia').hidden = false
+    $('audiencia').innerHTML = `<b>${n.toLocaleString('pt-BR')}</b> ${n === 1 ? 'pessoa assistindo' : 'pessoas assistindo'} agora`
+  }
+  ws.onclose = () => setTimeout(() => audiencia(Math.min(espera * 2, 60000)), espera + Math.random() * 1000)
+}
+audiencia()
 </script>
 </body>
 </html>

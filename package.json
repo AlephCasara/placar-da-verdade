@@ -12,5 +12,8 @@
   "type": "commonjs",
   "devDependencies": {
     "wrangler": "^4.151.1"
+  },
+  "dependencies": {
+    "sherpa-onnx-node": "^1.13.8"
   }
 }

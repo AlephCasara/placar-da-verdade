@@ -1,11 +1,16 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "placar-da-verdade",
+  "main": "worker.js",
   "compatibility_date": "2026-10-12",
   "observability": {
     "enabled": true
   },
   "assets": {
     "directory": "site"
-  }
+  },
+  "durable_objects": {
+    "bindings": [{ "name": "CONTADOR", "class_name": "Contador" }]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Contador"] }]
 }
