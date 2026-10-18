@@ -1,5 +1,5 @@
-// Robô do placar: ouve o debate no YouTube, transcreve, checa cada frase com o Jev
-// e publica placar.json no Cloudflare R2. Roda no PC do operador durante o debate.
+// Robô do placar: ouve o debate no YouTube, transcreve, o Jev separa as afirmações checáveis,
+// um modelo barato com busca na web dá o veredito, e publica placar.json no Cloudflare R2. Roda no PC do operador durante o debate.
 //
 // Uso:  node --env-file=.env robo.mjs <url-youtube> --a "Nome A" --b "Nome B" [--inicio 1500] [--local]
 // Teclas: 1 = candidato A falando · 2 = candidato B · 0 = mediador/intervalo (não checa)
@@ -13,24 +13,21 @@ const { values: arg, positionals } = parseArgs({ allowPositionals: true, options
   b: { type: 'string', default: 'Candidato B' },
   inicio: { type: 'string', default: '0' },      // segundos; só vale para vídeo gravado
   quem: { type: 'string', default: '0' },        // quem começa falando
-  contexto: { type: 'string', default: 'Debate presidencial do segundo turno no Brasil' },
+  contexto: { type: 'string' },                  // padrão: debate do 2º turno no mês atual
   local: { type: 'boolean', default: false },    // grava em site/placar.json em vez do R2
 } })
+arg.contexto ??= `Debate presidencial do segundo turno no Brasil, ${new Date().toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}`
 const URL_VIDEO = positionals[0]
 if (!URL_VIDEO) throw new Error('Passe a URL do YouTube')
 
 const KEY = process.env.OPENROUTER_API_KEY
 const BUCKET = 'placar-debate'
 const SEGUNDOS = 10
-// Calibragem: abaixo disso a frase não é checável / o veredito vira "sem_dados"
+// Calibragem: abaixo disso o Jev considera que a frase não é uma afirmação checável
 const CHECAVEL_MIN = 0.6
-const CONFIANCA_MIN = 0.5 // testado: 0.7 jogava quase tudo em sem_dados; o Jev é calibrado e assume quando não sabe
+const JUIZ = 'google/gemini-3.1-flash-lite' // testado: acertou 6/6 frases do debate de 2022 com busca Parallel
+const VEREDITOS = ['verdadeiro', 'impreciso', 'falso', 'sem_dados']
 const WHISPER_LIXO = /amara\.org|legendas? (pela|por)|inscreva-se|obrigad[oa] por assistir/i
-const STOP = new Set(('a o e é de do da dos das em no na nos nas um uma uns umas que se por para pra com sem ' +
-  'ao aos à às eu tu ele ela nós vós eles elas me te lhe nos vos meu minha seu sua nosso nossa isso isto aquilo ' +
-  'esse essa este esta aquele aquela mais menos muito muita muitos muitas como quando onde porque mas ou nem ' +
-  'já não sim foi era ser ter tem têm está estão estava vai vão fazer fez feito sobre entre até também ' +
-  'então aqui ali lá agora hoje gente você vocês senhor senhora candidato presidente brasil').split(' '))
 
 const placar = {
   atualizado: 0,
@@ -59,51 +56,47 @@ async function transcrever(arquivo) {
   return WHISPER_LIXO.test(text ?? '') ? '' : (text ?? '').trim()
 }
 
-const PERGUNTAS = {
-  checavel: { type: 'noul',
-    instructions: 'A frase faz uma afirmação factual objetiva que pode ser checada (número, estatística, fato histórico, ato de governo, evento)?',
-    criteria: { true: 'Afirma um fato verificável', false: 'Opinião, promessa, pergunta, ataque pessoal, cumprimento ou frase incompleta' } },
-  veredito: { type: 'choice',
-    instructions: 'Considerando as evidências e o conhecimento geral sobre o Brasil, a afirmação do candidato é:',
-    criteria: { verdadeiro: 'Os fatos confirmam a afirmação', impreciso: 'Parcialmente correta, exagerada, desatualizada ou fora de contexto',
-      falso: 'Os fatos contradizem a afirmação' } }, // sem "sem_dados" aqui: vira sem_dados quando a confiança é baixa
-  fonte: { type: 'noul', instructions: 'Alguma das evidências trata diretamente do fato afirmado na frase?' },
+// Jev: filtro barato e rápido antes de gastar com busca na web
+const CHECAVEL = { checavel: { type: 'noul',
+  instructions: 'A frase faz uma afirmação factual objetiva que pode ser checada (número, estatística, fato histórico, ato de governo, evento)?',
+  criteria: { true: 'Afirma um fato verificável', false: 'Opinião, promessa, pergunta, ataque pessoal, cumprimento ou frase incompleta' } } }
+
+const REGRAS = 'Você é um checador de fatos imparcial. Julgue se o CONTEÚDO da afirmação é verdadeiro segundo os dados, NÃO se a pessoa disse a frase. ' +
+  'Prefira dados oficiais (IBGE, INPE, Banco Central, TSE) e agências de checagem. Responda só JSON: ' +
+  '{"veredito":"verdadeiro|impreciso|falso|sem_dados","motivo":"uma frase curta com o dado correto","fonte":"url usada"}. ' +
+  'verdadeiro = os dados confirmam; impreciso = exagerado, parcialmente certo ou fora de contexto; falso = os dados contradizem; sem_dados = as fontes não trazem dado sobre o fato.'
+
+// Juiz: modelo barato + busca na web (agências de checagem, imprensa, dados oficiais)
+async function julgar(frase, nome) {
+  const r = await openrouter('v1/chat/completions', {
+    model: JUIZ, max_tokens: 300, temperature: 0, response_format: { type: 'json_object' },
+    plugins: [{ id: 'web', engine: 'parallel', mode: 'turbo', max_results: 5 }],
+    messages: [{ role: 'system', content: REGRAS },
+      { role: 'user', content: `${frase}\n\n(Afirmação de ${nome}. ${arg.contexto}. É verdade?)` }],
+  })
+  const msg = r.choices[0].message
+  const resultados = (msg.annotations ?? []).map(a => a.url_citation)
+  const v = JSON.parse(msg.content.replace(/^```(json)?|```$/g, ''))
+  // Só aceita link que veio mesmo da busca; nunca uma URL inventada pelo modelo
+  const fonte = resultados.find(x => x.url === v.fonte) ?? resultados[0]
+  return {
+    veredito: VEREDITOS.includes(v.veredito) ? v.veredito : 'sem_dados',
+    motivo: String(v.motivo ?? '').slice(0, 280),
+    fonte: fonte ? { titulo: fonte.title || new URL(fonte.url).hostname, url: fonte.url } : null,
+  }
 }
 
-// ---------- Wikipedia (provas) ----------
-async function wikipedia(frase) {
-  const termos = [...new Set(frase.toLowerCase().match(/[\p{L}\d%,.]+/gu) ?? [])]
-    .map(t => t.replace(/[,.]+$/, '')).filter(t => !STOP.has(t) && (t.length > 3 || /\d/.test(t))).slice(0, 8)
-  if (!termos.length) return []
-  const q = new URLSearchParams({ action: 'query', format: 'json', list: 'search', srlimit: '3', srprop: 'snippet', srsearch: termos.join(' OR ') })
-  const r = await fetch(`https://pt.wikipedia.org/w/api.php?${q}`, { headers: { 'User-Agent': 'PlacarDoDebate/0.1' } })
-  if (!r.ok) return []
-  return ((await r.json()).query?.search ?? []).map(p => ({
-    titulo: p.title,
-    url: `https://pt.wikipedia.org/wiki/${encodeURIComponent(p.title.replaceAll(' ', '_'))}`,
-    trecho: p.snippet.replace(/<[^>]+>/g, '').replace(/&quot;/g, '"').replace(/&amp;/g, '&'),
-  }))
-}
-
-// ---------- Checagem ----------
 async function checar(frase, quem) {
   if (quem === '0' || frase.length < 25) return
+  const t = Date.now(), nome = placar.candidatos[quem].nome
   try {
-    const provas = await wikipedia(frase)
-    const nome = placar.candidatos[quem].nome
-    const r = await openrouter('alpha/decisions', {
-      model: 'typesafe/jev-1.14',
-      state: { contexto: arg.contexto, candidato: nome, frase, evidencias: provas.map(p => `${p.titulo}: ${p.trecho}`) },
-      questions: PERGUNTAS,
-    })
-    if (r.answers.checavel.noul < CHECAVEL_MIN) return
-    const v = r.answers.veredito
-    const veredito = v.confidence < CONFIANCA_MIN ? 'sem_dados' : v.choice
-    const fonte = r.answers.fonte.noul > 0.5 && provas[0] ? { titulo: provas[0].titulo, url: provas[0].url } : null
-    placar.candidatos[quem][veredito]++
-    placar.falas.unshift({ t: Date.now(), quem, frase, veredito, confianca: +v.confidence.toFixed(2), fonte })
-    placar.falas.length = Math.min(placar.falas.length, 60)
-    console.log(`\n[${veredito.toUpperCase()} ${Math.round(v.confidence * 100)}%] ${nome}: ${frase}${fonte ? `  (${fonte.titulo})` : ''}`)
+    const { answers } = await openrouter('alpha/decisions', { model: 'typesafe/jev-1.14', state: { contexto: arg.contexto, frase }, questions: CHECAVEL })
+    if (answers.checavel.noul < CHECAVEL_MIN) return
+    const j = await julgar(frase, nome)
+    placar.candidatos[quem][j.veredito]++
+    placar.falas.push({ t, quem, frase, ...j })
+    placar.falas = placar.falas.sort((x, y) => y.t - x.t).slice(0, 60)
+    console.log(`\n[${j.veredito.toUpperCase()}] ${nome}: ${frase}\n   →${j.motivo}${j.fonte ? ` (${j.fonte.url})` : ''}`)
     publicar()
   } catch (e) { console.error('\nerro checando:', e.message) }
 }

@@ -76,6 +76,7 @@
   .fala .cab { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: .85rem; color: var(--apagado); }
   .fala .cab b { color: var(--tinta); font-size: .95rem; }
   .fala q { display: block; margin: 6px 0 4px; font-size: 1.05rem; max-width: 70ch; }
+  .fala .motivo { margin: 0 0 4px; font-size: .95rem; max-width: 70ch; }
   .fala .fonte { font-size: .85rem; color: var(--apagado); }
   .vazio { background: var(--tela); border-radius: 10px; padding: 20px; color: var(--apagado); }
 
@@ -124,7 +125,8 @@
       </div>
       <div class="caixa">
         <h3>Como funciona</h3>
-        <p>O áudio do debate é transcrito a cada 10 segundos. Cada afirmação que dá para checar é comparada com a Wikipedia por um modelo de IA (Jev), com as mesmas regras para os dois candidatos.</p>
+        <p>O áudio do debate é transcrito a cada 10 segundos. Uma IA (Jev) separa as afirmações que dão para checar. Outra IA busca cada uma na web, em agências de checagem, imprensa e dados oficiais, e dá o veredito com a fonte.</p>
+        <p>As mesmas regras valem para os dois candidatos.</p>
         <p><strong>É uma checagem automática e pode errar.</strong> Confira a fonte de cada fala antes de compartilhar.</p>
       </div>
       <div class="caixa">
@@ -181,7 +183,8 @@ function desenhar() {
       <div class="cab"><span class="tecla ${f.veredito}">${ROTULO[f.veredito]}</span><b>${esc(d.candidatos[f.quem].nome)}</b>
         <span>${new Date(f.t).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span></div>
       <q>${esc(f.frase)}</q>
-      <div class="fonte">${f.fonte ? `Fonte: <a href="${esc(f.fonte.url)}" target="_blank" rel="noopener">${esc(f.fonte.titulo)} (Wikipedia)</a>` : 'Sem fonte direta. Veredito pelo conhecimento geral do modelo.'}</div>
+      ${f.motivo ? `<p class="motivo">${esc(f.motivo)}</p>` : ''}
+      <div class="fonte">${f.fonte ? `Fonte: <a href="${esc(f.fonte.url)}" target="_blank" rel="noopener">${esc(f.fonte.titulo)}</a> (${esc(new URL(f.fonte.url).hostname.replace(/^www\./, ''))})` : 'Nenhuma fonte encontrada.'}</div>
     </li>`
   }).join('') : '<li class="vazio">O placar começa na primeira afirmação que der para checar. Fique de olho.</li>'
 
