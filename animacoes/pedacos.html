@@ -49,7 +49,7 @@
 
 <script>
 const $ = id => document.getElementById(id)
-const escala = () => $('palco').style.transform = `scale(${Math.min(innerWidth / 1920, innerHeight / 1080)})`
+const escala = () => $('palco').style.transform = `translate(-50%, -50%) scale(${Math.min(innerWidth / 1920, innerHeight / 1080)})`
 addEventListener('resize', escala); escala()
 // Onda contínua (decorativa) correndo na live
 const alt = i => 12 + Math.abs(Math.sin(i * .7) * Math.cos(i * .23)) * 88

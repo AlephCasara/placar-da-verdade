@@ -9,7 +9,7 @@
 html, body { width: 100%; height: 100%; background: var(--fundo); overflow: hidden; }
 body { display: grid; place-items: center; font-family: 'Hanken Grotesk', system-ui, sans-serif; color: var(--texto); }
 /* Palco fixo 1920x1080, escalado para caber na janela (OBS: fonte de navegador 1920x1080) */
-.palco { width: 1920px; height: 1080px; position: relative; padding: 70px 110px; transform-origin: center; flex: none; }
+.palco { width: 1920px; height: 1080px; position: fixed; left: 50%; top: 50%; padding: 70px 110px; transform-origin: center; }
 .topo { display: flex; justify-content: space-between; align-items: center; }
 .marca { display: flex; align-items: center; gap: 18px; }
 .marca img { width: 64px; height: 64px; }

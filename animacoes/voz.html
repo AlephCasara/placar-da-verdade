@@ -74,7 +74,7 @@
 <script>
 const D = window.DADOS, $ = id => document.getElementById(id)
 // Escala o palco 1920x1080 para caber em qualquer janela
-const escala = () => $('palco').style.transform = `scale(${Math.min(innerWidth / 1920, innerHeight / 1080)})`
+const escala = () => $('palco').style.transform = `translate(-50%, -50%) scale(${Math.min(innerWidth / 1920, innerHeight / 1080)})`
 addEventListener('resize', escala); escala()
 
 const maxAbs = v => Math.max(...v.map(Math.abs))

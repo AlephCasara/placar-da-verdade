@@ -72,7 +72,7 @@
 
 <script>
 const $ = id => document.getElementById(id)
-const escala = () => $('palco').style.transform = `scale(${Math.min(innerWidth / 1920, innerHeight / 1080)})`
+const escala = () => $('palco').style.transform = `translate(-50%, -50%) scale(${Math.min(innerWidth / 1920, innerHeight / 1080)})`
 addEventListener('resize', escala); escala()
 $('vu').innerHTML = Array.from({ length: 9 }, (_, i) => `<span style="animation-delay:${(i * 0.11).toFixed(2)}s"></span>`).join('')
 
