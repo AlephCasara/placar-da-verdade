@@ -107,7 +107,7 @@ async function medirTom(texto) {
 // 2. Haiku: lê o trecho como um editor. Escolhe o que vale checar (corrigindo a transcrição),
 //    anota propostas e ataques com texto (o que o Jev não escreve)
 const EXTRAIR = `Você é editor de uma agência de checagem cobrindo o debate. A transcrição automática pode ter erros.
-Leia o TRECHO do candidato e responda só JSON:
+Leia o TRECHO do candidato e responda só JSON. Extraia SÓ do TRECHO; FALAS ANTERIORES são apenas contexto.
 {"afirmacoes":[{"tema":"","afirmacao":"","contexto":"","busca":""}],"propostas":[{"titulo":"","explicacao":""}],"ataques":[{"resumo":""}]}
 
 afirmacoes (máx. 2): só o que REALMENTE vale uma checagem: números, estatísticas, comparações, atos de governo, leis, eventos.
@@ -204,6 +204,23 @@ async function julgar(a, quem) {
 }
 
 const historico = [] // últimos trechos de todo mundo, para o Haiku entender réplica e tréplica
+
+// O Haiku às vezes pega de novo uma afirmação do trecho anterior (que ele recebe como contexto), e dois
+// trechos seguidos podem estar sendo checados ao mesmo tempo. Trava no código: mesma pessoa + palavras
+// quase iguais a algo dos últimos 15 itens dela = repetido
+const palavras = t => new Set(String(t).toLowerCase().match(/\p{L}{4,}|\d+/gu) ?? [])
+function repetida(quem, frase) {
+  const novas = palavras(frase)
+  const ja = recentes[quem].some(velha => {
+    const v = palavras(velha); let comuns = 0
+    for (const p of novas) if (v.has(p)) comuns++
+    return comuns / Math.max(1, Math.min(novas.size, v.size)) > 0.6
+  })
+  if (!ja) recentes[quem] = [...recentes[quem], frase].slice(-15)
+  return ja
+}
+const recentes = { 1: [], 2: [] }
+
 async function analisar(texto, quem, t, duracao) {
   const anterior = historico.slice(-3).join('\n') || '(início)'
   historico.push(`${nomeDe(quem)}: ${texto}`)
@@ -213,19 +230,21 @@ async function analisar(texto, quem, t, duracao) {
     const c = placar.candidatos[quem]
     for (const k in c.tempo) c.tempo[k] = Math.round((c.tempo[k] + duracao * (tom[k] ?? 0)) * 10) / 10
     for (const p of lido.propostas) {
-      c.propostas++
       const ja = placar.propostas.find(x => x.quem === quem && x.titulo.toLowerCase() === String(p.titulo).toLowerCase())
-      if (ja) ja.vezes++
+      if (ja && t - (ja.ultima ?? ja.t) < 90_000) continue // mesma proposta 2x em 90s = o mesmo trecho lido de novo
+      c.propostas++
+      if (ja) ja.vezes++, ja.ultima = t
       else placar.propostas.push({ quem, titulo: String(p.titulo), explicacao: String(p.explicacao ?? ''), vezes: 1, t })
       console.log(`\n[PROPOSTA] ${nomeDe(quem)}: ${p.titulo}`)
     }
     for (const a of lido.ataques) {
+      if (repetida(quem, a.resumo)) continue
       c.ataques++
       placar.ataques = [{ quem, resumo: String(a.resumo), t }, ...placar.ataques].slice(0, 30)
       console.log(`\n[ATAQUE] ${nomeDe(quem)}: ${a.resumo}`)
     }
     publicar()
-    await Promise.all(lido.afirmacoes.map(async a => {
+    await Promise.all(lido.afirmacoes.filter(a => !repetida(quem, a.afirmacao)).map(async a => {
       const j = await julgar(a, quem)
       placar.candidatos[quem][j.veredito]++
       let fato = placar.fatos.find(f => f.tema.toLowerCase() === String(a.tema).toLowerCase())
