@@ -53,7 +53,9 @@ const [aoVivo, inicioLive] = ytdlp('--print', '%(is_live)s %(release_timestamp)s
 const placar = {
   atualizado: 0,
   video: { id: new URL(URL_VIDEO).searchParams.get('v') ?? URL_VIDEO.split('/').pop(), ao_vivo: aoVivo === 'True', inicio: +arg.inicio, t0: Date.now(),
-    comeco: inicioLive !== 'NA' ? +inicioLive * 1000 : Date.now() }, // comeco: quando a transmissão começou (para o "rolando há")
+    // comeco: início do debate ("rolando há" e linha do tempo). Ao vivo é quando o robô liga, porque a live da TV
+    // costuma abrir horas antes com pré-show; na reprise é o início da transmissão gravada
+    comeco: aoVivo !== 'True' && inicioLive !== 'NA' ? +inicioLive * 1000 : Date.now() },
   candidatos: { 1: zerado(arg.a), 2: zerado(arg.b) },
   fatos: [],     // [{ tema, atualizado, declaracoes: [{ t, quem, afirmacao, contexto, veredito, motivo, fonte }] }]
   propostas: [], // [{ quem, titulo, explicacao, vezes, t }]
@@ -69,6 +71,7 @@ if (arg.continuar && existsSync('tmp/placar.json')) {
   const salvo = JSON.parse(readFileSync('tmp/placar.json', 'utf8'))
   for (const k of ['fatos', 'propostas', 'ataques']) placar[k] = salvo[k] ?? []
   placar.linha = salvo.linha ?? {}
+  if (salvo.video?.comeco) placar.video.comeco = salvo.video.comeco // mantém a linha do tempo no mesmo relógio
   for (const q of ['1', '2']) Object.assign(placar.candidatos[q], salvo.candidatos?.[q], { nome: placar.candidatos[q].nome })
   console.log('continuando de onde parou:', placar.fatos.length, 'fatos,', placar.propostas.length, 'propostas')
 }
