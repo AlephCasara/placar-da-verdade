@@ -1,15 +1,25 @@
 // Contador de quem está com o site aberto agora. Cada aba abre um WebSocket em /ao-vivo;
 // um único Durable Object guarda as conexões (hibernando, sem custo parado) e a cada 5s
-// manda o total para todo mundo. O resto do site são arquivos estáticos servidos antes daqui.
+// manda o total para todo mundo. O resto do site são arquivos estáticos que nem passam por aqui.
 import { DurableObject } from 'cloudflare:workers'
 
+// Só abas do próprio site contam (ao trocar para domínio próprio, adicionar aqui e no site/_headers)
+const ORIGENS = ['https://placar-da-verdade.zenithon.workers.dev']
+// Contra quem abre milhares de conexões para inflar o número ou derrubar o contador.
+// Alto por IP porque operadora de celular põe muita gente atrás do mesmo IP (CGNAT).
+const POR_IP = 50, TOTAL = 30000
+
 export class Contador extends DurableObject {
-  async fetch() {
+  async fetch(req) {
+    const ip = req.headers.get('CF-Connecting-IP') ?? '?'
+    if (this.ctx.getWebSockets(ip).length >= POR_IP || this.ctx.getWebSockets().length >= TOTAL)
+      return new Response('Muitas conexões', { status: 429 })
     const [cliente, servidor] = Object.values(new WebSocketPair())
-    this.ctx.acceptWebSocket(servidor)
+    this.ctx.acceptWebSocket(servidor, [ip])
     await this.agendar()
     return new Response(null, { status: 101, webSocket: cliente })
   }
+  async webSocketMessage(ws) { ws.close(1003, 'Este canal só envia') } // ninguém precisa mandar nada
   async webSocketClose() { await this.agendar() }
   async webSocketError() { await this.agendar() }
   // Junta entradas e saídas numa transmissão só, a cada 5s (senão 10 mil entradas = 10 mil × 10 mil mensagens)
@@ -25,8 +35,9 @@ export class Contador extends DurableObject {
 
 export default {
   fetch(req, env) {
-    if (new URL(req.url).pathname === '/ao-vivo' && req.headers.get('Upgrade') === 'websocket')
-      return env.CONTADOR.get(env.CONTADOR.idFromName('geral')).fetch(req)
-    return new Response('Não encontrado', { status: 404 })
+    if (new URL(req.url).pathname !== '/ao-vivo' || req.headers.get('Upgrade') !== 'websocket')
+      return new Response('Não encontrado', { status: 404 })
+    if (!ORIGENS.includes(req.headers.get('Origin'))) return new Response('Origem não permitida', { status: 403 })
+    return env.CONTADOR.get(env.CONTADOR.idFromName('geral')).fetch(req)
   },
 }

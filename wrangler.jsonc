@@ -7,7 +7,11 @@
     "enabled": true
   },
   "assets": {
-    "directory": "site"
+    "directory": "site",
+    // Só /ao-vivo chega no Worker. Qualquer outro endereço (até os inexistentes) é respondido pelos
+    // arquivos estáticos, que são grátis e ilimitados: flood de URL aleatória não gasta a cota do Worker
+    "run_worker_first": ["/ao-vivo"],
+    "not_found_handling": "404-page"
   },
   "durable_objects": {
     "bindings": [{ "name": "CONTADOR", "class_name": "Contador" }]
