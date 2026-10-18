@@ -92,9 +92,9 @@ let timers = []
 const em = (ms, f) => timers.push(setTimeout(f, ms))
 const pct = v => Math.max(0, Math.round(v * 100))
 function contar(el, alvo, ms = 1300) {
-  const t0 = performance.now()
-  const passo = t => { const p = Math.max(0, Math.min(1, (t - t0) / ms)); el.textContent = Math.round(alvo * (1 - (1 - p) ** 3)) + '%'; if (p < 1) requestAnimationFrame(passo) }
-  requestAnimationFrame(passo)
+  const t0 = Date.now()
+  const id = setInterval(() => { const p = Math.min(1, (Date.now() - t0) / ms); el.textContent = Math.round(alvo * (1 - (1 - p) ** 3)) + '%'; if (p >= 1) clearInterval(id) }, 30)
+  timers.push(id)
 }
 
 function rodada(t, trecho, certo, nome) {
@@ -122,7 +122,7 @@ function rodada(t, trecho, certo, nome) {
 }
 
 function roteiro() {
-  timers.forEach(clearTimeout); timers = []
+  timers.forEach(t => { clearTimeout(t); clearInterval(t) }); timers = []
   $('rodape').classList.remove('on')
   rodada(0, D.trechoLula, 0, 'Lula')
   rodada(8000, D.trechoFlavio, 1, 'Flávio Bolsonaro')

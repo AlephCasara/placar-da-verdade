@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Animações do Placar da Verdade</title>
+<link rel="stylesheet" href="estilo.css">
+<style>
+  body { display: block; overflow: auto; }
+  .lista { max-width: 1100px; margin: 0 auto; padding: 60px 24px; }
+  h1 { font-size: 56px; margin: 30px 0 30px; }
+  ol { list-style: none; padding: 0; display: grid; gap: 14px; }
+  a { display: grid; grid-template-columns: 60px 1fr; gap: 18px; align-items: center; padding: 22px 26px; color: var(--texto); text-decoration: none; }
+  a:hover, a:focus-visible { border-color: var(--texto); outline: none; }
+  a b { font-family: var(--mono); font-size: 22px; color: var(--apagado); font-weight: 400; }
+  a strong { font-size: 28px; display: block; }
+  a span { color: var(--apagado); font-size: 19px; }
+  p { color: var(--apagado); margin-top: 26px; font-size: 18px; }
+</style>
+</head>
+<body>
+<div class="lista">
+  <div class="marca"><img src="logo.svg" alt=""><div><b>Zenithon</b><span>academy</span></div></div>
+  <h1>Animações, na ordem do fluxograma</h1>
+  <ol>
+    <li><a class="cartao" href="pedacos.html"><b>1</b><div><strong>Do YouTube para o texto</strong><span>yt-dlp + ffmpeg cortam a live em pedaços de 10s · Whisper transcreve</span></div></a></li>
+    <li><a class="cartao" href="voz.html"><b>2</b><div><strong>Impressão digital da voz</strong><span>Como o sistema sabe se é o Lula ou o Flávio falando</span></div></a></li>
+    <li><a class="cartao" href="tom.html"><b>3</b><div><strong>Proposta ou ataque?</strong><span>Jev mede o tom · Haiku anota propostas, ataques e fatos</span></div></a></li>
+    <li><a class="cartao" href="veredito.html"><b>4</b><div><strong>Do áudio ao veredito</strong><span>Busca na web + juiz: o fato vira Verdadeiro, Impreciso ou Falso com fonte</span></div></a></li>
+    <li><a class="cartao" href="nuvem.html"><b>5</b><div><strong>Como o site aguenta milhares de pessoas</strong><span>Cache de 3s no Cloudflare + o porteiro que conta quem está vendo</span></div></a></li>
+  </ol>
+  <p>Espaço ou R recomeça a animação · F11 para tela cheia · Alt+← volta para esta lista</p>
+</div>
+</body>
+</html>

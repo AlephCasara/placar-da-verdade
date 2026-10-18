@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Proposta ou ataque?</title>
+<link rel="stylesheet" href="estilo.css">
+<style>
+  :root { --proposta: #2457a6; --ataque: #b5367a; --defesa: #8a8f8b; --balanco: #c9ccc8; }
+  .trecho { position: absolute; left: 110px; top: 390px; width: 860px; height: 585px; padding: 34px 40px; }
+  .trecho .rotulo b { color: var(--texto); font-weight: 400; }
+  .fala { font-size: 36px; line-height: 1.42; margin-top: 22px; font-weight: 500; }
+  .fala::before { content: "“"; } .fala::after { content: "”"; }
+  .jev { position: absolute; left: 1010px; top: 390px; width: 800px; height: 270px; padding: 28px 36px; }
+  .barra { display: grid; grid-template-columns: 230px 1fr 80px; align-items: center; gap: 16px; margin-top: 16px; font-size: 24px; }
+  .barra .trilho { height: 18px; background: #262626; border-radius: 9px; overflow: hidden; }
+  .barra .enche { height: 100%; width: 0; border-radius: 9px; transition: width 1.1s cubic-bezier(.2, .8, .2, 1); }
+  .barra b { text-align: right; font-variant-numeric: tabular-nums; }
+  .haiku { position: absolute; left: 1010px; top: 680px; width: 800px; height: 295px; padding: 26px 36px; }
+  .itens { display: grid; gap: 12px; margin-top: 16px; }
+  .item { display: grid; grid-template-columns: 130px 1fr; gap: 16px; align-items: start; font-size: 22px; line-height: 1.3; }
+  .item .tipo { font-family: var(--mono); font-size: 14px; letter-spacing: .18em; text-transform: uppercase; text-align: center; padding: 6px 0; border-radius: 6px; color: #fff; }
+  .item b { font-weight: 800; }
+  .item small { display: block; color: var(--apagado); font-size: 19px; margin-top: 2px; }
+</style>
+</head>
+<body>
+<div class="palco" id="palco">
+  <div class="topo">
+    <div class="marca"><img src="logo.svg" alt=""><div><b>Zenithon</b><span>academy</span></div></div>
+    <div class="pilula"><i></i>Placar da Verdade · ao vivo</div>
+  </div>
+  <h1>Proposta ou ataque?<small>O Jev mede o tom · o Haiku anota o que foi dito</small></h1>
+
+  <div class="trecho cartao"><div class="rotulo">Trecho real · <b id="nome"></b></div><p class="fala surge" id="fala"></p></div>
+  <div class="jev cartao"><div class="rotulo">Jev · mede o tom em ~0,2s</div><div id="barras"></div></div>
+  <div class="haiku cartao"><div class="rotulo">Haiku · anota com texto</div><div class="itens" id="itens"></div></div>
+
+  <div class="rodape surge" id="rodape"><span>Isso vira o contador “Propostas ou ataques?” do site</span><b>placar.zenithonacademy.com.br</b></div>
+</div>
+
+<script src="trechos.js"></script>
+<script>
+const $ = id => document.getElementById(id)
+const escala = () => $('palco').style.transform = `scale(${Math.min(innerWidth / 1920, innerHeight / 1080)})`
+addEventListener('resize', escala); escala()
+const TONS = [['proposta', 'Propondo'], ['ataque', 'Atacando'], ['defesa', 'Se defendendo'], ['balanco', 'Falando do passado']]
+
+let timers = []
+const em = (ms, f) => timers.push(setTimeout(f, ms))
+function contar(el, alvo, ms = 1100) {
+  const t0 = Date.now()
+  const id = setInterval(() => { const p = Math.min(1, (Date.now() - t0) / ms); el.textContent = Math.round(alvo * (1 - (1 - p) ** 3)) + '%'; if (p >= 1) clearInterval(id) }, 30)
+  timers.push(id)
+}
+
+function rodada(t, tr) {
+  em(t, () => {
+    $('nome').textContent = tr.nome; $('fala').textContent = tr.texto; $('fala').classList.remove('on')
+    $('barras').innerHTML = TONS.map(([k, r]) => `<div class="barra"><span>${r}</span><div class="trilho"><div class="enche" data-k="${k}" style="background:var(--${k})"></div></div><b data-k="${k}">0%</b></div>`).join('')
+    $('itens').innerHTML = ''
+  })
+  em(t + 300, () => $('fala').classList.add('on'))
+  em(t + 2400, () => {
+    for (const [k] of TONS) {
+      const v = Math.round((tr.tom[k] ?? 0) * 100)
+      document.querySelector(`.enche[data-k="${k}"]`).style.width = v + '%'
+      contar(document.querySelector(`b[data-k="${k}"]`), v)
+    }
+  })
+  em(t + 4400, () => {
+    const itens = [
+      ...tr.propostas.map(p => ['Proposta', 'var(--proposta)', `<b>${p.titulo}</b><small>${p.explicacao}</small>`]),
+      ...tr.ataques.map(a => ['Ataque', 'var(--ataque)', a.resumo]),
+      ...tr.afirmacoes.map(a => ['Fato', '#3a3a3a', `${a.afirmacao}<small>vai para a busca e o juiz</small>`]),
+    ].slice(0, 2)
+    $('itens').innerHTML = itens.map(([tipo, cor, html], i) => `<div class="item surge" style="transition-delay:${i * 500}ms"><span class="tipo" style="background:${cor}">${tipo}</span><span>${html}</span></div>`).join('')
+  })
+  em(t + 4460, () => document.querySelectorAll('#itens .surge').forEach(e => e.classList.add('on')))
+}
+
+function roteiro() {
+  timers.forEach(t => { clearTimeout(t); clearInterval(t) }); timers = []
+  $('rodape').classList.remove('on')
+  rodada(0, TRECHOS[0])
+  rodada(10000, TRECHOS[1])
+  em(16500, () => $('rodape').classList.add('on'))
+  if (new URLSearchParams(location.search).get('loop') !== '0') em(21000, roteiro)
+}
+addEventListener('keydown', e => { if (e.key === ' ' || e.key === 'r') roteiro() }) // espaço ou R recomeça
+document.fonts.ready.then(roteiro)
+</script>
+</body>
+</html>
