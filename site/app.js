@@ -210,15 +210,18 @@ async function buscar() {
 buscar(); setInterval(() => { if (!document.hidden) buscar() }, 6000)
 document.addEventListener('visibilitychange', () => { if (!document.hidden) buscar() })
 
-// Quantas pessoas estão com o site aberto agora
-function audiencia(espera = 2000) {
+// Quantas pessoas estão com o site aberto agora e quantas visitas já teve
+function audiencia(espera = 2000, primeira = true) {
   if (LOCAL) return
-  const ws = new WebSocket(`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/ao-vivo`)
+  // ?nova só na primeira conexão da página: reconexão não conta como visita
+  const ws = new WebSocket(`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/ao-vivo${primeira ? '?nova' : ''}`)
   ws.onmessage = e => {
-    const n = +e.data
+    let d; try { d = JSON.parse(e.data) } catch { return }
+    const n = +d.agora || 0, v = +d.visitas || 0
     $('audiencia').hidden = false
-    $('audiencia').innerHTML = `<b>${n.toLocaleString('pt-BR')}</b> ${n === 1 ? 'pessoa assistindo' : 'pessoas assistindo'} agora`
+    $('audiencia').innerHTML = `<b>${n.toLocaleString('pt-BR')}</b> ${n === 1 ? 'pessoa assistindo' : 'pessoas assistindo'} agora` +
+      (v ? ` · <b>${v.toLocaleString('pt-BR')}</b> ${v === 1 ? 'visita' : 'visitas'}` : '')
   }
-  ws.onclose = () => setTimeout(() => audiencia(Math.min(espera * 2, 60000)), espera + Math.random() * 1000)
+  ws.onclose = () => setTimeout(() => audiencia(Math.min(espera * 2, 60000), false), espera + Math.random() * 1000)
 }
 audiencia()

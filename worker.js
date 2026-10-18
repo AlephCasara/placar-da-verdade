@@ -10,10 +10,18 @@ const ORIGENS = ['https://placar.zenithonacademy.com.br', 'https://placar-da-ver
 const POR_IP = 50, TOTAL = 30000
 
 export class Contador extends DurableObject {
+  recentes = new Map() // ip → última visita contada (só em memória: se o objeto dormir, zera, e tudo bem)
   async fetch(req) {
     const ip = req.headers.get('CF-Connecting-IP') ?? '?'
     if (this.ctx.getWebSockets(ip).length >= POR_IP || this.ctx.getWebSockets().length >= TOTAL)
       return new Response('Muitas conexões', { status: 429 })
+    // Visita = abrir a página (reconexão não conta). Mesmo IP só conta de novo depois de 10 min,
+    // para recarregar a página sem parar não inflar o número
+    if (new URL(req.url).searchParams.has('nova') && Date.now() - (this.recentes.get(ip) ?? 0) > 600_000) {
+      this.recentes.set(ip, Date.now())
+      if (this.recentes.size > 50_000) this.recentes.clear()
+      await this.ctx.storage.put('visitas', ((await this.ctx.storage.get('visitas')) ?? 0) + 1)
+    }
     const [cliente, servidor] = Object.values(new WebSocketPair())
     this.ctx.acceptWebSocket(servidor, [ip])
     await this.agendar()
@@ -28,8 +36,9 @@ export class Contador extends DurableObject {
   }
   async alarm() {
     const conexoes = this.ctx.getWebSockets()
+    const msg = JSON.stringify({ agora: conexoes.length, visitas: (await this.ctx.storage.get('visitas')) ?? 0 })
     // ponytail: um objeto só aguenta dezenas de milhares de conexões; acima disso, dividir em vários e somar
-    for (const ws of conexoes) try { ws.send(String(conexoes.length)) } catch {}
+    for (const ws of conexoes) try { ws.send(msg) } catch {}
   }
 }
 
