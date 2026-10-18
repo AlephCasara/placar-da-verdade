@@ -27,6 +27,7 @@
     --balanco: #c9ccc8;
   }
   * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
   body {
     margin: 0; background: var(--fundo); color: var(--tinta);
     font: 400 1rem/1.5 "Archivo", system-ui, sans-serif;
@@ -48,6 +49,14 @@
   .topo { display: grid; grid-template-columns: 1.5fr 1fr; gap: 16px; }
   .video { aspect-ratio: 16/9; background: var(--tinta); border-radius: 10px; overflow: hidden; }
   .video iframe { width: 100%; height: 100%; border: 0; display: block; }
+  .botao-texto { background: none; border: 0; padding: 6px 0; font: inherit; font-size: .85rem; color: var(--apagado); text-decoration: underline; cursor: pointer; }
+  .botao-texto:focus-visible, .ver-live:focus-visible { outline: 3px solid var(--tinta); outline-offset: 2px; }
+  /* Vídeo oculto: só a faixa de "ao vivo" e quanto tempo de debate */
+  .topo.sem-video { grid-template-columns: minmax(0, 1fr); }
+  .faixa-live { display: flex; align-items: center; gap: 10px 16px; flex-wrap: wrap; background: var(--tela); border-radius: 10px; padding: 12px 16px; }
+  .faixa-live .status { font-size: .95rem; }
+  .faixa-live .duracao { color: var(--apagado); font-variant-numeric: tabular-nums; }
+  .ver-live { margin-left: auto; border: 0; border-radius: 6px; padding: .55em 1em; font: inherit; font-weight: 700; background: var(--tinta); color: #fff; cursor: pointer; }
 
   /* visor da urna */
   .visor { background: var(--tela); border: 2px solid var(--borda); border-radius: 10px; padding: 16px; display: grid; gap: 14px; align-content: start; }
@@ -149,8 +158,16 @@
     </div>
   </header>
 
-  <section class="topo">
-    <div class="video" id="video"></div>
+  <section class="topo" id="topo">
+    <div id="com-video">
+      <div class="video" id="video"></div>
+      <button class="botao-texto" id="ocultar" type="button">Ocultar vídeo e ver só os dados</button>
+    </div>
+    <div class="faixa-live" id="sem-video" hidden>
+      <div class="status" id="faixa-status"><span class="ponto"></span><span id="faixa-texto">Conectando…</span></div>
+      <span class="duracao" id="duracao"></span>
+      <button class="ver-live" id="ver-live" type="button">▶ Ver a live</button>
+    </div>
     <div class="visor" aria-live="polite">
       <div class="mentirometro">
         <h2>Mentirômetro</h2>
@@ -232,12 +249,7 @@ function conta(c) {
 
 function desenhar() {
   const d = dados, [A, B] = Object.values(d.candidatos), ca = conta(A), cb = conta(B)
-  if (!videoPronto && d.video?.id) {
-    const inicio = d.video.ao_vivo ? 0 : Math.round(d.video.inicio + (Date.now() - d.video.t0) / 1000)
-    $('video').innerHTML = `<iframe src="https://www.youtube.com/embed/${encodeURIComponent(d.video.id)}?autoplay=1&mute=1&start=${inicio}"
-      title="Transmissão do debate" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>`
-    videoPronto = true
-  }
+  if (!videoPronto) mostrarVideo(videoVisivel)
 
   // Mentirômetro: ponteiro para a esquerda = A erra mais, centro = empate, direita = B erra mais
   const angulo = (ca.total && cb.total) ? Math.max(-80, Math.min(80, (cb.erro - ca.erro) * 160)) : 0
@@ -309,7 +321,37 @@ function relogio() {
   const reprise = dados.video && !dados.video.ao_vivo
     ? ` · reprise do debate de ${new Date(dados.video.data).toLocaleDateString('pt-BR')}` : ''
   $('status-texto').innerHTML = vivo ? `<strong>Ao vivo</strong> · checagem ~30s atrás da TV${reprise}` : `Última atualização há ${Math.round(s / 60)} min`
+  $('faixa-status').classList.toggle('vivo', vivo)
+  $('faixa-texto').innerHTML = vivo ? '<strong>Ao vivo</strong>' : 'Debate encerrado ou pausado'
+  const min = Math.floor(segundosDeDebate() / 60)
+  $('duracao').textContent = `rolando há ${min >= 60 ? `${Math.floor(min / 60)}h${String(min % 60).padStart(2, '0')}` : `${min} min`}`
 }
+
+// Tempo de debate: ao vivo, desde o início da transmissão; na reprise, a posição do vídeo
+function segundosDeDebate() {
+  const v = dados?.video
+  if (!v) return 0
+  return v.ao_vivo ? (Date.now() - (v.comeco ?? v.t0)) / 1000 : v.inicio + (Date.now() - v.t0) / 1000
+}
+
+// Ocultar / mostrar o vídeo. Oculto, o player sai da página (não gasta internet) e fica a faixa de ao vivo
+let videoVisivel = true
+try { videoVisivel = localStorage.getItem('video') !== 'oculto' } catch {}
+function mostrarVideo(visivel) {
+  videoVisivel = visivel
+  try { localStorage.setItem('video', visivel ? 'visivel' : 'oculto') } catch {}
+  $('com-video').hidden = !visivel
+  $('sem-video').hidden = visivel
+  $('topo').classList.toggle('sem-video', !visivel)
+  if (!visivel) { $('video').innerHTML = ''; videoPronto = !!dados; return relogio() }
+  if (!dados?.video?.id) return
+  const inicio = dados.video.ao_vivo ? 0 : Math.round(segundosDeDebate())
+  $('video').innerHTML = `<iframe src="https://www.youtube.com/embed/${encodeURIComponent(dados.video.id)}?autoplay=1&mute=1&start=${inicio}"
+    title="Transmissão do debate" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>`
+  videoPronto = true
+}
+$('ocultar').onclick = () => { mostrarVideo(false); $('ver-live').focus() }
+$('ver-live').onclick = () => { mostrarVideo(true); $('ocultar').focus() }
 
 async function buscar() {
   try {

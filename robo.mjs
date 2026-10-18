@@ -43,7 +43,8 @@ function ytdlp(...a) {
 const [aoVivo, inicioLive] = ytdlp('--print', '%(is_live)s %(release_timestamp)s').split(' ')
 const placar = {
   atualizado: 0,
-  video: { id: new URL(URL_VIDEO).searchParams.get('v') ?? URL_VIDEO.split('/').pop(), ao_vivo: aoVivo === 'True', inicio: +arg.inicio, t0: Date.now() },
+  video: { id: new URL(URL_VIDEO).searchParams.get('v') ?? URL_VIDEO.split('/').pop(), ao_vivo: aoVivo === 'True', inicio: +arg.inicio, t0: Date.now(),
+    comeco: inicioLive !== 'NA' ? +inicioLive * 1000 : Date.now() }, // comeco: quando a transmissão começou (para o "rolando há")
   candidatos: { 1: zerado(arg.a), 2: zerado(arg.b) },
   fatos: [],     // [{ tema, atualizado, declaracoes: [{ t, quem, afirmacao, contexto, veredito, motivo, fonte }] }]
   propostas: [], // [{ quem, titulo, explicacao, vezes, t }]
@@ -175,7 +176,7 @@ const REGRAS = 'Você é um checador de fatos imparcial. Julgue se o CONTEÚDO d
   'verdadeiro = os dados confirmam; impreciso = exagerado, parcialmente certo ou fora de contexto; falso = os dados contradizem; sem_dados = as provas não trazem dado sobre o fato.'
 
 async function julgar(a, quem) {
-  const provas = await buscar(a.busca)
+  const provas = await buscar(a.busca || a.afirmacao) // às vezes o Haiku deixa a busca vazia
   const r = somar(await openrouter('v1/chat/completions', {
     model: JUIZ, max_tokens: 300, temperature: 0, response_format: { type: 'json_object' },
     messages: [{ role: 'system', content: `${situacao()}\n\n${REGRAS}` }, { role: 'user', content:
