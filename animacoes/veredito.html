@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Do áudio ao veredito</title>
+<link rel="stylesheet" href="estilo.css">
+<style>
+  .etapas { position: absolute; left: 110px; right: 110px; top: 360px; display: flex; align-items: center; }
+  .etapa { font-size: 24px; font-weight: 700; color: var(--fraco); border: 1.5px solid var(--linha); border-radius: 999px; padding: 10px 24px; white-space: nowrap;
+    transition: all .35s ease; }
+  .etapa b { font-family: var(--mono); font-weight: 400; margin-right: 10px; }
+  .etapa.feita { color: var(--texto); border-color: var(--fraco); }
+  .etapa.agora { color: var(--fundo); background: var(--texto); border-color: var(--texto); box-shadow: 0 0 40px rgb(255 255 255 / .2); }
+  .liga { flex: 1; height: 2px; background: var(--linha); margin: 0 12px; position: relative; overflow: hidden; }
+  .liga i { position: absolute; inset: 0; background: var(--texto); transform: scaleX(0); transform-origin: left; transition: transform .5s ease; }
+  .liga.on i { transform: scaleX(1); }
+
+  .quadro { position: absolute; left: 110px; right: 110px; top: 460px; height: 470px; padding: 36px 44px; }
+  .quem { display: flex; align-items: center; gap: 18px; font-size: 26px; font-weight: 700; }
+  .quem small { font-family: var(--mono); font-size: 16px; letter-spacing: .2em; text-transform: uppercase; color: var(--apagado); font-weight: 400; }
+  .vu { display: flex; gap: 4px; align-items: center; height: 34px; }
+  .vu span { width: 6px; background: var(--texto); border-radius: 3px; animation: vu .9s ease-in-out infinite; }
+  .vu.parado span { animation: none; height: 6px !important; }
+  @keyframes vu { 0%, 100% { height: 6px; } 50% { height: 32px; } }
+  .fala { font-size: 50px; font-weight: 700; line-height: 1.25; letter-spacing: -.01em; margin-top: 26px; min-height: 126px; max-width: 1550px; }
+  .fala mark { color: inherit; background: linear-gradient(transparent 74%, rgb(255 255 255 / .3) 74%) no-repeat 0 0 / 0% 100%; transition: background-size .9s ease; }
+  .fala mark.on { background-size: 100% 100%; }
+  .etiqueta { display: inline-block; margin-top: 8px; font-family: var(--mono); font-size: 17px; letter-spacing: .2em; text-transform: uppercase;
+    border: 1.5px solid var(--texto); border-radius: 6px; padding: 6px 12px; }
+  .baixo { position: absolute; left: 44px; right: 44px; bottom: 36px; height: 150px; }
+  .fontes { position: absolute; inset: 0; display: flex; gap: 20px; align-items: stretch; transition: opacity .4s; }
+  .fonte { flex: 1; border: 1.5px solid var(--linha); border-radius: 16px; padding: 18px 22px; font-size: 24px; font-weight: 700; }
+  .fonte small { display: block; font-family: var(--mono); font-size: 14px; letter-spacing: .18em; text-transform: uppercase; color: var(--apagado); font-weight: 400; margin-bottom: 8px; }
+  .filtro { flex: 1.25; color: var(--apagado); font-size: 22px; line-height: 1.35; display: flex; align-items: center; }
+  .veredito { position: absolute; inset: 0; display: flex; gap: 36px; align-items: center; }
+  .carimbo { flex: none; font-size: 64px; font-weight: 800; letter-spacing: .02em; color: #fff; padding: 14px 40px; border-radius: 14px;
+    box-shadow: inset 0 -8px 0 rgb(0 0 0 / .28); transform: scale(2.4) rotate(-8deg); opacity: 0; transition: transform .45s cubic-bezier(.2, 1.5, .4, 1), opacity .2s; }
+  .veredito.on .carimbo { transform: rotate(-3deg); opacity: 1; }
+  .dados { font-size: 30px; line-height: 1.35; max-width: 1150px; }
+  .dados b { font-weight: 800; }
+  .dados small { display: block; color: var(--apagado); font-size: 22px; margin-top: 8px; }
+</style>
+</head>
+<body>
+<div class="palco" id="palco">
+  <div class="topo">
+    <div class="marca"><img src="logo.svg" alt=""><div><b>Zenithon</b><span>academy</span></div></div>
+    <div class="pilula"><i></i>Placar da Verdade · ao vivo</div>
+  </div>
+  <h1>Do áudio ao veredito<small>Teste com o debate de 2022 · as mesmas regras para os dois</small></h1>
+
+  <div class="etapas" id="etapas">
+    <div class="etapa"><b>1</b>Ouve</div><div class="liga"><i></i></div>
+    <div class="etapa"><b>2</b>Transcreve</div><div class="liga"><i></i></div>
+    <div class="etapa"><b>3</b>Separa o fato</div><div class="liga"><i></i></div>
+    <div class="etapa"><b>4</b>Busca na web</div><div class="liga"><i></i></div>
+    <div class="etapa"><b>5</b>Veredito</div>
+  </div>
+
+  <div class="quadro cartao">
+    <div class="quem"><div class="vu" id="vu"></div><span id="quem"></span><small id="quando"></small></div>
+    <div class="fala" id="fala"></div>
+    <div id="etiqueta"></div>
+    <div class="baixo">
+      <div class="fontes" id="fontes"></div>
+      <div class="veredito" id="veredito"><div class="carimbo" id="carimbo"></div><div class="dados surge" id="dados"></div></div>
+    </div>
+  </div>
+
+  <div class="rodape surge" id="rodape"><span>Fonte em cada veredito · sites de partido ficam de fora da busca</span><b>placar.zenithonacademy.com.br</b></div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id)
+const escala = () => $('palco').style.transform = `scale(${Math.min(innerWidth / 1920, innerHeight / 1080)})`
+addEventListener('resize', escala); escala()
+$('vu').innerHTML = Array.from({ length: 9 }, (_, i) => `<span style="animation-delay:${(i * 0.11).toFixed(2)}s"></span>`).join('')
+
+// Casos reais do teste com o debate de 2022 (um de cada candidato)
+const CASOS = [
+  { quem: 'Lula', fala: 'Nós geramos 22 milhões de empregos, nós aumentamos o salário mínimo.', fato: '22 milhões de empregos',
+    fontes: [['Agência de checagem', 'Agência Lupa'], ['Imprensa', 'CNN Brasil'], ['Imprensa', 'Folha de S.Paulo']],
+    veredito: ['Impreciso', 'var(--impreciso)'], dados: 'Foram <b>15,4 milhões</b> de empregos formais nos governos Lula (2003–2010), não 22 milhões.', fonte: 'CNN Brasil, com dados da RAIS' },
+  { quem: 'Bolsonaro', fala: 'O Auxílio Brasil hoje paga 600 reais por mês.', fato: 'paga 600 reais por mês',
+    fontes: [['Dado oficial', 'Senado Federal'], ['Dado oficial', 'gov.br'], ['Imprensa', 'g1']],
+    veredito: ['Verdadeiro', 'var(--verdadeiro)'], dados: 'Desde agosto de 2022, o valor mínimo do Auxílio Brasil era <b>R$ 600</b> (Emenda Constitucional 123).', fonte: 'Senado Federal' },
+]
+
+let timers = []
+const em = (ms, f) => timers.push(setTimeout(f, ms))
+const etapas = [...document.querySelectorAll('.etapa')], ligas = [...document.querySelectorAll('.liga')]
+function etapa(n) { etapas.forEach((e, i) => { e.classList.toggle('feita', i < n); e.classList.toggle('agora', i === n) }); ligas.forEach((l, i) => l.classList.toggle('on', i < n)) }
+
+function caso(t, c) {
+  em(t, () => {
+    etapa(0)
+    $('quem').textContent = c.quem; $('quando').textContent = 'falando agora'; $('vu').classList.remove('parado')
+    $('fala').textContent = ''; $('etiqueta').innerHTML = ''; $('fontes').innerHTML = ''; $('fontes').style.opacity = 1
+    $('veredito').classList.remove('on'); $('dados').classList.remove('on')
+  })
+  em(t + 1200, () => {
+    etapa(1)
+    let i = 0
+    const digita = setInterval(() => { $('fala').textContent = c.fala.slice(0, ++i); if (i >= c.fala.length) clearInterval(digita) }, 1900 / c.fala.length)
+    timers.push(digita)
+  })
+  em(t + 3500, () => {
+    etapa(2); $('vu').classList.add('parado'); $('quando').textContent = 'voz reconhecida'
+    $('fala').innerHTML = c.fala.replace(c.fato, `<mark id="marca">${c.fato}</mark>`)
+  })
+  em(t + 3560, () => $('marca').classList.add('on'))
+  em(t + 4300, () => $('etiqueta').innerHTML = '<span class="etiqueta">afirmação que dá para checar</span>')
+  em(t + 5300, () => {
+    etapa(3)
+    $('fontes').innerHTML = c.fontes.map(([tipo, nome], i) => `<div class="fonte surge" style="transition-delay:${i * 220}ms"><small>${tipo}</small>${nome}</div>`).join('') +
+      '<div class="filtro surge" style="transition-delay:700ms">Só o que existia até aquele momento. Sites de partido ficam de fora.</div>'
+  })
+  em(t + 5360, () => document.querySelectorAll('#fontes .surge').forEach(e => e.classList.add('on')))
+  em(t + 7900, () => {
+    etapa(4); $('fontes').style.opacity = 0
+    $('carimbo').textContent = c.veredito[0]; $('carimbo').style.background = c.veredito[1]
+    $('dados').innerHTML = `${c.dados}<small>Fonte: ${c.fonte}</small>`
+    $('veredito').classList.add('on')
+  })
+  em(t + 8500, () => $('dados').classList.add('on'))
+}
+
+function roteiro() {
+  timers.forEach(t => { clearTimeout(t); clearInterval(t) }); timers = []
+  $('rodape').classList.remove('on')
+  caso(0, CASOS[0])
+  caso(11500, CASOS[1])
+  em(21500, () => $('rodape').classList.add('on'))
+  if (new URLSearchParams(location.search).get('loop') !== '0') em(26000, roteiro)
+}
+addEventListener('keydown', e => { if (e.key === ' ' || e.key === 'r') roteiro() }) // espaço ou R recomeça
+document.fonts.ready.then(roteiro)
+</script>
+</body>
+</html>

@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Impressão digital da voz</title>
+<link rel="stylesheet" href="estilo.css">
+<style>
+  .esq { position: absolute; left: 110px; top: 400px; width: 1040px; }
+  .dir { position: absolute; left: 1250px; top: 400px; width: 560px; display: grid; gap: 66px; }
+  .bloco { padding: 24px 32px; height: 232px; }
+  .bloco .rotulo { display: flex; justify-content: space-between; }
+  .onda, .digital { display: flex; align-items: center; gap: 3px; height: 156px; margin-top: 10px; }
+  .onda span { flex: 1; background: var(--texto); border-radius: 3px; transform: scaleY(0); transition: transform .35s cubic-bezier(.2, .9, .3, 1.2); }
+  .on .onda span { transform: scaleY(1); }
+  .digital { position: relative; }
+  .digital::before { content: ""; position: absolute; left: 0; right: 0; top: 50%; border-top: 1.5px dashed var(--linha); }
+  .digital span { flex: 1; position: relative; height: 100%; }
+  .digital span i { position: absolute; left: 0; right: 0; background: var(--texto); border-radius: 2px; transform: scaleY(0); transition: transform .4s cubic-bezier(.2, .9, .3, 1.2); }
+  .on .digital span i { transform: scaleY(1); }
+  .seta { height: 70px; display: flex; align-items: center; justify-content: center; gap: 16px; color: var(--apagado); font-size: 24px; }
+  .seta b { color: var(--texto); font-weight: 700; }
+  .modelo { border: 1.5px solid var(--linha); border-radius: 999px; padding: 6px 18px; transition: border-color .3s, color .3s, box-shadow .3s; }
+  .modelo.ativo { border-color: var(--texto); color: var(--texto); box-shadow: 0 0 30px rgb(255 255 255 / .18); }
+  .cand { padding: 24px 30px; height: 232px; transition: border-color .4s, opacity .4s, box-shadow .4s; position: relative; }
+  .cand h2 { font-size: 36px; font-weight: 800; letter-spacing: -.01em; }
+  .cand .mini { display: flex; align-items: center; gap: 2px; height: 56px; margin: 10px 0 16px; opacity: .55; }
+  .cand .mini span { flex: 1; position: relative; height: 100%; }
+  .cand .mini i { position: absolute; left: 0; right: 0; background: var(--texto); border-radius: 1px; }
+  .medidor { position: relative; height: 16px; background: #262626; border-radius: 8px; overflow: visible; }
+  .medidor .enche { height: 100%; width: 0; background: var(--texto); border-radius: 8px; transition: width 1.3s cubic-bezier(.2, .8, .2, 1); }
+  .medidor .meio { position: absolute; left: 50%; top: -8px; bottom: -8px; border-left: 2px dashed var(--fraco); }
+  .pct { position: absolute; right: 30px; top: 18px; font-size: 50px; font-weight: 800; font-variant-numeric: tabular-nums; }
+  .cand.vence { border-color: var(--texto); box-shadow: 0 0 60px rgb(255 255 255 / .16); }
+  .cand.perde { opacity: .38; }
+  .selo { position: absolute; right: 30px; bottom: 22px; font-family: var(--mono); letter-spacing: .2em; font-size: 16px; text-transform: uppercase;
+    background: var(--texto); color: var(--fundo); padding: 6px 12px; border-radius: 6px; opacity: 0; transform: scale(.8); transition: all .35s cubic-bezier(.2, .9, .3, 1.4); }
+  .vence .selo { opacity: 1; transform: none; }
+  .resultado { position: absolute; left: 110px; top: 948px; font-size: 34px; font-weight: 700; }
+  .resultado span { color: var(--apagado); font-weight: 500; }
+</style>
+</head>
+<body>
+<div class="palco" id="palco">
+  <div class="topo">
+    <div class="marca"><img src="logo.svg" alt=""><div><b>Zenithon</b><span>academy</span></div></div>
+    <div class="pilula"><i></i>Placar da Verdade · ao vivo</div>
+  </div>
+  <h1>Como o placar sabe quem está falando<small>A impressão digital da voz</small></h1>
+
+  <div class="esq">
+    <div class="bloco cartao" id="b-onda">
+      <div class="rotulo"><span>2 segundos de áudio do debate</span><span id="trecho"></span></div>
+      <div class="onda" id="onda"></div>
+    </div>
+    <div class="seta"><span>↓</span><span class="modelo" id="modelo"><b>Modelo de voz</b> · roda no notebook, grátis</span><span>↓</span></div>
+    <div class="bloco cartao" id="b-digital">
+      <div class="rotulo"><span>Impressão digital: o timbre em números</span><span>192 números (mostrando 64)</span></div>
+      <div class="digital" id="digital"></div>
+    </div>
+  </div>
+
+  <div class="dir">
+    <div class="cand cartao" id="c0"><h2>Lula</h2><div class="rotulo">voz cadastrada</div><div class="mini" id="m0"></div>
+      <div class="medidor"><div class="enche" id="e0"></div><div class="meio"></div></div><div class="pct" id="p0">0%</div><div class="selo">É ele</div></div>
+    <div class="cand cartao" id="c1"><h2>Flávio Bolsonaro</h2><div class="rotulo">voz cadastrada</div><div class="mini" id="m1"></div>
+      <div class="medidor"><div class="enche" id="e1"></div><div class="meio"></div></div><div class="pct" id="p1">0%</div><div class="selo">É ele</div></div>
+  </div>
+
+  <div class="resultado surge" id="resultado"></div>
+  <div class="rodape surge" id="rodape"><span>Abaixo de 50% para os dois = mediador ou outra pessoa</span><b>placar.zenithonacademy.com.br</b></div>
+</div>
+
+<script src="dados.js"></script>
+<script>
+const D = window.DADOS, $ = id => document.getElementById(id)
+// Escala o palco 1920x1080 para caber em qualquer janela
+const escala = () => $('palco').style.transform = `scale(${Math.min(innerWidth / 1920, innerHeight / 1080)})`
+addEventListener('resize', escala); escala()
+
+const maxAbs = v => Math.max(...v.map(Math.abs))
+function barras(el, v, altura, atraso) {
+  const m = maxAbs(v)
+  el.innerHTML = v.map((x, i) => {
+    const h = Math.abs(x) / m * altura / 2, cima = x >= 0
+    return `<span><i style="height:${h}px;${cima ? `bottom:50%;transform-origin:bottom` : `top:50%;transform-origin:top`};opacity:${.35 + .65 * Math.abs(x) / m};transition-delay:${i * atraso}ms"></i></span>`
+  }).join('')
+}
+barras($('m0'), D.refLula, 56, 0); barras($('m1'), D.refFlavio, 56, 0)
+document.querySelectorAll('.mini i').forEach(i => i.style.transform = 'none')
+
+let timers = []
+const em = (ms, f) => timers.push(setTimeout(f, ms))
+const pct = v => Math.max(0, Math.round(v * 100))
+function contar(el, alvo, ms = 1300) {
+  const t0 = performance.now()
+  const passo = t => { const p = Math.max(0, Math.min(1, (t - t0) / ms)); el.textContent = Math.round(alvo * (1 - (1 - p) ** 3)) + '%'; if (p < 1) requestAnimationFrame(passo) }
+  requestAnimationFrame(passo)
+}
+
+function rodada(t, trecho, certo, nome) {
+  em(t, () => {
+    for (const k of ['b-onda', 'b-digital']) $(k).classList.remove('on')
+    for (const i of [0, 1]) { $('c' + i).classList.remove('vence', 'perde'); $('e' + i).style.width = '0'; $('p' + i).textContent = '0%' }
+    $('resultado').classList.remove('on'); $('modelo').classList.remove('ativo')
+    $('trecho').textContent = 'quem está falando?'
+    $('onda').innerHTML = trecho.onda.map((x, i) => `<span style="height:${Math.max(4, x * 156)}px;transition-delay:${i * 9}ms"></span>`).join('')
+    barras($('digital'), trecho.vetor, 148, 14)
+  })
+  em(t + 300, () => $('b-onda').classList.add('on'))
+  em(t + 1700, () => $('modelo').classList.add('ativo'))
+  em(t + 2200, () => $('b-digital').classList.add('on'))
+  em(t + 3700, () => {
+    const v = [pct(trecho.lula), pct(trecho.flavio)]
+    v.forEach((x, i) => { $('e' + i).style.width = x + '%'; contar($('p' + i), x) })
+  })
+  em(t + 5300, () => {
+    $('c' + certo).classList.add('vence'); $('c' + (1 - certo)).classList.add('perde')
+    $('trecho').textContent = nome
+    $('resultado').innerHTML = `É o ${nome} falando <span>· ${pct(certo ? trecho.flavio : trecho.lula)}% contra ${pct(certo ? trecho.lula : trecho.flavio)}%</span>`
+    $('resultado').classList.add('on')
+  })
+}
+
+function roteiro() {
+  timers.forEach(clearTimeout); timers = []
+  $('rodape').classList.remove('on')
+  rodada(0, D.trechoLula, 0, 'Lula')
+  rodada(8000, D.trechoFlavio, 1, 'Flávio Bolsonaro')
+  em(14500, () => { $('resultado').classList.remove('on'); $('rodape').classList.add('on') })
+  if (new URLSearchParams(location.search).get('loop') !== '0') em(19000, roteiro)
+}
+addEventListener('keydown', e => { if (e.key === ' ' || e.key === 'r') roteiro() }) // espaço ou R recomeça
+document.fonts.ready.then(roteiro)
+</script>
+</body>
+</html>

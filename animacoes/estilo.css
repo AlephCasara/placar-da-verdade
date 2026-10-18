@@ -1,0 +1,31 @@
+/* Identidade Zenithon Academy: preto, branco, Hanken Grotesk, rótulos em mono espaçado */
+@import url('https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;700;800&display=block');
+:root {
+  --fundo: #0a0a0a; --cartao: #161616; --linha: #2a2a2a; --texto: #f5f5f5; --apagado: #9a9a9a; --fraco: #5a5a5a;
+  --verdadeiro: #1d8a4a; --impreciso: #e07b14; --falso: #c62828;
+  --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+* { box-sizing: border-box; margin: 0; }
+html, body { width: 100%; height: 100%; background: var(--fundo); overflow: hidden; }
+body { display: grid; place-items: center; font-family: 'Hanken Grotesk', system-ui, sans-serif; color: var(--texto); }
+/* Palco fixo 1920x1080, escalado para caber na janela (OBS: fonte de navegador 1920x1080) */
+.palco { width: 1920px; height: 1080px; position: relative; padding: 70px 110px; transform-origin: center; flex: none; }
+.topo { display: flex; justify-content: space-between; align-items: center; }
+.marca { display: flex; align-items: center; gap: 18px; }
+.marca img { width: 64px; height: 64px; }
+.marca b { display: block; font-size: 40px; font-weight: 800; line-height: .95; letter-spacing: -.01em; }
+.marca span { display: block; font-size: 26px; color: var(--texto); line-height: 1; }
+.pilula { font-family: var(--mono); font-size: 18px; letter-spacing: .28em; text-transform: uppercase; color: var(--apagado);
+  border: 1.5px solid var(--linha); border-radius: 999px; padding: 10px 22px; }
+.pilula i { display: inline-block; width: 12px; height: 12px; border-radius: 50%; background: #e5484d; margin-right: 12px; vertical-align: 0; animation: pisca 1.4s infinite; }
+@keyframes pisca { 50% { opacity: .25; } }
+h1 { font-size: 76px; font-weight: 800; letter-spacing: -.02em; line-height: 1.02; margin-top: 46px; }
+h1 small { display: block; font-size: 40px; font-weight: 500; color: var(--apagado); letter-spacing: -.01em; margin-top: 10px; }
+.rotulo { font-family: var(--mono); font-size: 17px; letter-spacing: .24em; text-transform: uppercase; color: var(--apagado); }
+.cartao { background: var(--cartao); border: 1.5px solid var(--linha); border-radius: 22px; }
+.rodape { position: absolute; left: 110px; right: 110px; bottom: 56px; display: flex; justify-content: space-between; color: var(--apagado); font-size: 24px; }
+.rodape b { color: var(--texto); }
+/* Animações por estado: o roteiro liga classes .on; sem .on, tudo volta ao início */
+.surge { opacity: 0; transform: translateY(18px); transition: opacity .6s ease, transform .6s cubic-bezier(.2, .8, .2, 1); }
+.surge.on { opacity: 1; transform: none; }
+@media (prefers-reduced-motion: reduce) { * { transition-duration: 0s !important; animation: none !important; } }
