@@ -322,10 +322,13 @@ function falantes(arquivo, segmentos) {
 }
 
 // ---------- Publicação (R2 via wrangler, uma de cada vez, sempre a mais nova) ----------
-let publicando = false, pendente = false
+let publicando = false, pendente = false, ultimaVersao = ""
 function publicar() {
   placar.atualizado = Date.now()
   writeFileSync('tmp/placar.json', JSON.stringify(placar)) // também serve para o --continuar
+  // Histórico de cada versão do placar: material para animações do vídeo editado (Mentirômetro mexendo, linha do tempo)
+  const versao = JSON.stringify({ ...placar, atualizado: undefined })
+  if (versao !== ultimaVersao) appendFileSync('tmp/historico.jsonl', JSON.stringify({ t: agora().getTime(), placar }) + '\n'), ultimaVersao = versao
   if (arg.local) return writeFileSync('site/placar.json', JSON.stringify(placar))
   if (publicando) return void (pendente = true)
   publicando = true
