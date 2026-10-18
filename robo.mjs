@@ -4,7 +4,8 @@
 //   busca na web só com o que existia ATÉ aquele momento → juiz dá o veredito → placar.json no R2.
 //
 // Uso:  node --env-file=.env robo.mjs <url-youtube> --a "Nome A" --b "Nome B" [--inicio 4230] [--local] [--continuar]
-// --continuar: se o robô cair no meio do debate, volta de onde parou (lê tmp/placar.json)
+// --continuar: se o robô cair no meio do debate, volta de onde parou (lê tmp/placar.json e tmp/gasto.json)
+// --limite: teto de gasto com IA em dólares (padrão 1). Em 80% para de checar fatos; em 100% para tudo.
 // Vídeo gravado vira simulação: o robô "vive" na data e hora em que o debate passou ao vivo.
 // Teclas: a = automático (voz) · 1 / 2 / 0 = força candidato A / B / mediador
 import { spawn, execFile, execFileSync } from 'node:child_process'
@@ -19,6 +20,7 @@ const { values: arg, positionals } = parseArgs({ allowPositionals: true, options
   inicio: { type: 'string', default: '0' },      // segundos; só vale para vídeo gravado
   local: { type: 'boolean', default: false },    // grava em site/placar.json em vez do R2
   continuar: { type: 'boolean', default: false },
+  limite: { type: 'string', default: '1' },
 } })
 const URL_VIDEO = positionals[0]
 if (!URL_VIDEO) throw new Error('Passe a URL do YouTube')
@@ -49,6 +51,8 @@ const placar = {
   fatos: [],     // [{ tema, atualizado, declaracoes: [{ t, quem, afirmacao, contexto, veredito, motivo, fonte }] }]
   propostas: [], // [{ quem, titulo, explicacao, vezes, t }]
   ataques: [],   // [{ quem, resumo, t }] (só os últimos)
+  linha: {},     // linha do tempo: { minuto: { a1, a2, p1, p2 } } ataques e propostas de cada um por minuto
+  pausado: false, // true quando o teto de gasto acaba com a checagem
 }
 function zerado(nome) {
   return { nome, verdadeiro: 0, impreciso: 0, falso: 0, sem_dados: 0, propostas: 0, ataques: 0,
@@ -57,6 +61,7 @@ function zerado(nome) {
 if (arg.continuar && existsSync('tmp/placar.json')) {
   const salvo = JSON.parse(readFileSync('tmp/placar.json', 'utf8'))
   for (const k of ['fatos', 'propostas', 'ataques']) placar[k] = salvo[k] ?? []
+  placar.linha = salvo.linha ?? {}
   for (const q of ['1', '2']) Object.assign(placar.candidatos[q], salvo.candidatos?.[q], { nome: placar.candidatos[q].nome })
   console.log('continuando de onde parou:', placar.fatos.length, 'fatos,', placar.propostas.length, 'propostas')
 }
@@ -72,6 +77,7 @@ const nomeDe = quem => quem === '0' ? 'Mediador' : placar.candidatos[quem].nome
 
 // ---------- OpenRouter ----------
 async function openrouter(caminho, corpo) {
+  if (gasto >= LIMITE) throw new Error(`teto de US$${LIMITE} atingido`)
   const r = await fetch(`https://openrouter.ai/api/${caminho}`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${KEY}`, 'Content-Type': 'application/json' },
@@ -81,8 +87,18 @@ async function openrouter(caminho, corpo) {
   return r.json()
 }
 const json = texto => JSON.parse(texto.slice(texto.indexOf('{'), texto.lastIndexOf('}') + 1))
-let gasto = 0
-const somar = r => (gasto += r.usage?.cost ?? 0, r)
+// ---------- Teto de gasto ----------
+// Soma o custo que o próprio OpenRouter informa em cada resposta e guarda em disco (sobrevive ao --continuar).
+// Cada chamada custa menos de US$0,01, então o teto estoura no máximo por centavos.
+const LIMITE = +arg.limite
+let gasto = arg.continuar && existsSync('tmp/gasto.json') ? JSON.parse(readFileSync('tmp/gasto.json', 'utf8')).gasto : 0
+const somar = r => {
+  gasto += r.usage?.cost ?? 0
+  writeFileSync('tmp/gasto.json', JSON.stringify({ gasto }))
+  if (gasto >= LIMITE && !placar.pausado) { placar.pausado = true; console.error(`\nTETO DE US$${LIMITE} ATINGIDO: IA desligada`); publicar() }
+  return r
+}
+const podeChecarFatos = () => gasto < LIMITE * 0.8 // fato é o mais caro (busca + juiz): é o primeiro a parar
 
 async function transcrever(arquivo) {
   const r = somar(await openrouter('v1/audio/transcriptions', {
@@ -203,6 +219,13 @@ async function julgar(a, quem) {
   }
 }
 
+// Minuto do debate em que algo aconteceu (t é a hora do debate; comeco, quando a transmissão começou)
+function marcar(t, chave) {
+  const m = Math.max(0, Math.floor((t - placar.video.comeco) / 60000))
+  placar.linha[m] ??= { a1: 0, a2: 0, p1: 0, p2: 0 }
+  placar.linha[m][chave]++
+}
+
 const historico = [] // últimos trechos de todo mundo, para o Haiku entender réplica e tréplica
 
 // O Haiku às vezes pega de novo uma afirmação do trecho anterior (que ele recebe como contexto), e dois
@@ -233,6 +256,7 @@ async function analisar(texto, quem, t, duracao) {
       const ja = placar.propostas.find(x => x.quem === quem && x.titulo.toLowerCase() === String(p.titulo).toLowerCase())
       if (ja && t - (ja.ultima ?? ja.t) < 90_000) continue // mesma proposta 2x em 90s = o mesmo trecho lido de novo
       c.propostas++
+      marcar(t, 'p' + quem)
       if (ja) ja.vezes++, ja.ultima = t
       else placar.propostas.push({ quem, titulo: String(p.titulo), explicacao: String(p.explicacao ?? ''), vezes: 1, t })
       console.log(`\n[PROPOSTA] ${nomeDe(quem)}: ${p.titulo}`)
@@ -240,11 +264,12 @@ async function analisar(texto, quem, t, duracao) {
     for (const a of lido.ataques) {
       if (repetida(quem, a.resumo)) continue
       c.ataques++
+      marcar(t, 'a' + quem)
       placar.ataques = [{ quem, resumo: String(a.resumo), t }, ...placar.ataques].slice(0, 30)
       console.log(`\n[ATAQUE] ${nomeDe(quem)}: ${a.resumo}`)
     }
     publicar()
-    await Promise.all(lido.afirmacoes.filter(a => !repetida(quem, a.afirmacao)).map(async a => {
+    await Promise.all(lido.afirmacoes.filter(a => podeChecarFatos() && !repetida(quem, a.afirmacao)).map(async a => {
       const j = await julgar(a, quem)
       placar.candidatos[quem][j.veredito]++
       let fato = placar.fatos.find(f => f.tema.toLowerCase() === String(a.tema).toLowerCase())
@@ -331,6 +356,7 @@ function ouvir() {
     numero++
     fila = fila.then(async () => {
       const arquivo = `tmp/seg/${nome.trim()}`
+      if (gasto >= LIMITE) return rmSync(arquivo, { force: true }) // teto atingido: só descarta o áudio
       try {
         const segmentos = await transcrever(arquivo)
         const quem = falantes(arquivo, segmentos)
@@ -351,7 +377,8 @@ placar.video.t0 = Date.now()
 // ---------- Teclado do operador ----------
 function status() {
   const modo = forcado ? `MANUAL (${nomeDe(forcado)})` : 'automático'
-  process.stdout.write(`\r>>> ${quando()} · falando: ${nomeDe(forcado ?? ultimo)} · voz: ${modo} · IA: US$${gasto.toFixed(4)}      `)
+  const teto = gasto >= LIMITE ? ' TETO ATINGIDO' : !podeChecarFatos() ? ' (fatos pausados: 80% do teto)' : ''
+  process.stdout.write(`\r>>> ${quando()} · falando: ${nomeDe(forcado ?? ultimo)} · voz: ${modo} · IA: US$${gasto.toFixed(4)} de US$${LIMITE}${teto}      `)
 }
 if (process.stdin.isTTY) {
   process.stdin.setRawMode(true)
