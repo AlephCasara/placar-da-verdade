@@ -42,9 +42,20 @@ export function quemFala(amostras, vozes) {
     const e = impressao(amostras.subarray(i, i + JANELA))
     const sims = vozes.map(v => cosseno(e, v))
     const melhor = sims.indexOf(Math.max(...sims))
-    out.push({ ini: i / TAXA, fim: Math.min(i + JANELA, amostras.length) / TAXA, voz: sims[melhor] >= LIMIAR ? melhor : -1, sims })
+    out.push({ ini: i / TAXA, fim: Math.min(i + JANELA, amostras.length) / TAXA, voz: sims[melhor] >= LIMIAR ? melhor : -1, sims, e })
   }
   return out
+}
+
+// Quando o operador corrige na tecla, a voz cadastrada aprende um pouco com o áudio do próprio debate
+// (mesmo microfone e estúdio), e o automático fica melhor dali em diante
+export function reforcar(nome, voz, janelas, peso = 0.1) {
+  if (!janelas.length) return voz
+  const m = new Float32Array(voz.length)
+  janelas.forEach(j => j.e.forEach((x, k) => m[k] += x))
+  const media = normalizar(m), nova = normalizar(voz.map((x, k) => x * (1 - peso) + media[k] * peso))
+  writeFileSync(`vozes/${nome}.json`, JSON.stringify(Array.from(nova)))
+  return nova
 }
 
 // Rótulo de um intervalo [ini, fim] em segundos: voto da maioria das janelas que se sobrepõem a ele
