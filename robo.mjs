@@ -5,7 +5,7 @@
 //
 // Uso:  node --env-file=.env robo.mjs <url-youtube> --a "Nome A" --b "Nome B" [--inicio 4230] [--local] [--continuar]
 // --continuar: se o robô cair no meio do debate, volta de onde parou (lê tmp/placar.json e tmp/gasto.json)
-// --limite: teto de gasto com IA em dólares (padrão 1). Em 80% para de checar fatos; em 100% para tudo.
+// --limite: teto de gasto com IA em dólares (padrão 2). Em 80% para de checar fatos; em 100% para tudo.
 // Vídeo gravado vira simulação: o robô "vive" na data e hora em que o debate passou ao vivo.
 // Teclas: a = automático (voz) · 1 / 2 / 0 = força candidato A / B / mediador
 import { spawn, execFile, execFileSync } from 'node:child_process'
@@ -20,7 +20,7 @@ const { values: arg, positionals } = parseArgs({ allowPositionals: true, options
   inicio: { type: 'string', default: '0' },      // segundos; só vale para vídeo gravado
   local: { type: 'boolean', default: false },    // grava em site/placar.json em vez do R2
   continuar: { type: 'boolean', default: false },
-  limite: { type: 'string', default: '1' },
+  limite: { type: 'string', default: '2' },
 } })
 // Tudo que aparece na tela também vai para tmp/robo.log, para acompanhar o debate de fora (bugs, quedas, gasto)
 mkdirSync('tmp', { recursive: true })
