@@ -1,6 +1,6 @@
 // Robô do placar. Roda no PC do operador durante o debate:
 //   áudio do YouTube em pedaços de 10s → Whisper transcreve → voz identifica quem fala →
-//   Jev mede o tom (proposta, ataque, defesa...) · Haiku extrai fatos, propostas e ataques →
+//   Jev mede o tom e peneira (só conversa não vai adiante) → Haiku extrai fatos, propostas e ataques →
 //   busca na web só com o que existia ATÉ aquele momento → juiz dá o veredito → placar.json no R2.
 //
 // Uso:  node --env-file=.env robo.mjs <url-youtube> --a "Nome A" --b "Nome B" [--inicio 4230] [--local] [--continuar]
@@ -117,7 +117,8 @@ async function transcrever(arquivo) {
 }
 
 // 1. Jev: mede o tom do trecho em ~0,2s. Devolve a probabilidade de cada tipo, então o tempo de fala
-//    é dividido na proporção (trecho 70% ataque / 30% proposta → 70% dos segundos para ataque)
+//    é dividido na proporção (trecho 70% ataque / 30% proposta → 70% dos segundos para ataque).
+//    Também é a peneira: trecho que é só conversa não chega ao Haiku.
 const TOM = { tom: { type: 'choice', instructions: 'O que o candidato está fazendo neste trecho do debate?', criteria: {
   proposta: 'Diz o que vai fazer se for eleito', ataque: 'Ofende, acusa ou desqualifica o adversário',
   defesa: 'Rebate uma acusação feita contra ele', balanco: 'Fala do que já fez no governo ou cita dados do passado',
@@ -233,6 +234,8 @@ function marcar(t, chave) {
   placar.linha[m][chave]++
 }
 
+const SO_CONVERSA = 0.7 // Jev: acima disso o trecho é só conversa (cumprimento, regra, pergunta) e o Haiku é pulado
+let pulados = 0
 const historico = [] // últimos trechos de todo mundo, para o Haiku entender réplica e tréplica
 
 // O Haiku às vezes pega de novo uma afirmação do trecho anterior (que ele recebe como contexto), e dois
@@ -256,9 +259,12 @@ async function analisar(texto, quem, t, duracao) {
   historico.push(`${nomeDe(quem)}: ${texto}`)
   if (quem === '0' || texto.length < 40) return
   try {
-    const [lido, tom] = await Promise.all([ler(texto, quem, anterior), medirTom(texto)]) // Jev e Haiku em paralelo
+    const tom = await medirTom(texto) // Jev primeiro (~0,2s): mede o tom e serve de peneira
     const c = placar.candidatos[quem]
     for (const k in c.tempo) c.tempo[k] = Math.round((c.tempo[k] + duracao * (tom[k] ?? 0)) * 10) / 10
+    // Só cumprimento, regra do debate ou pergunta: o Haiku nem lê. Limite alto de propósito, para não perder proposta ou ataque
+    if ((tom.outro ?? 0) >= SO_CONVERSA) { pulados++; return }
+    const lido = await ler(texto, quem, anterior)
     for (const p of lido.propostas) {
       const ja = placar.propostas.find(x => x.quem === quem && x.titulo.toLowerCase() === String(p.titulo).toLowerCase())
       if (ja && t - (ja.ultima ?? ja.t) < 90_000) continue // mesma proposta 2x em 90s = o mesmo trecho lido de novo
@@ -388,7 +394,7 @@ placar.video.t0 = Date.now()
 function status() {
   const modo = forcado ? `MANUAL (${nomeDe(forcado)})` : 'automático'
   const teto = gasto >= LIMITE ? ' TETO ATINGIDO' : !podeChecarFatos() ? ' (fatos pausados: 80% do teto)' : ''
-  process.stdout.write(`\r>>> ${quando()} · falando: ${nomeDe(forcado ?? ultimo)} · voz: ${modo} · IA: US$${gasto.toFixed(4)} de US$${LIMITE}${teto}      `)
+  process.stdout.write(`\r>>> ${quando()} · falando: ${nomeDe(forcado ?? ultimo)} · voz: ${modo} · IA: US$${gasto.toFixed(4)} de US$${LIMITE}${teto} · Jev poupou ${pulados} leitura(s)      `)
 }
 if (process.stdin.isTTY) {
   process.stdin.setRawMode(true)
