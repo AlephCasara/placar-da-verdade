@@ -1,6 +1,6 @@
 // Robô do placar. Roda no PC do operador durante o debate:
 //   áudio do YouTube em pedaços de 10s → Whisper transcreve → voz identifica quem fala →
-//   Haiku lê cada trecho: fatos que valem checar (corrigindo a transcrição), propostas e ataques →
+//   Jev mede o tom (proposta, ataque, defesa...) · Haiku extrai fatos, propostas e ataques →
 //   busca na web só com o que existia ATÉ aquele momento → juiz dá o veredito → placar.json no R2.
 //
 // Uso:  node --env-file=.env robo.mjs <url-youtube> --a "Nome A" --b "Nome B" [--inicio 4230] [--local] [--continuar]
@@ -92,15 +92,22 @@ async function transcrever(arquivo) {
   return (r.segments ?? []).filter(s => s.text.trim() && !WHISPER_LIXO.test(s.text))
 }
 
-// 1. Haiku: lê o trecho como um editor. Escolhe o que vale checar (corrigindo a transcrição),
-//    anota propostas e ataques, e diz o tom que predomina
+// 1. Jev: mede o tom do trecho em ~0,2s. Devolve a probabilidade de cada tipo, então o tempo de fala
+//    é dividido na proporção (trecho 70% ataque / 30% proposta → 70% dos segundos para ataque)
+const TOM = { tom: { type: 'choice', instructions: 'O que o candidato está fazendo neste trecho do debate?', criteria: {
+  proposta: 'Diz o que vai fazer se for eleito', ataque: 'Ofende, acusa ou desqualifica o adversário',
+  defesa: 'Rebate uma acusação feita contra ele', balanco: 'Fala do que já fez no governo ou cita dados do passado',
+  outro: 'Cumprimento, regra do debate ou pergunta' } } }
+async function medirTom(texto) {
+  const { answers } = somar(await openrouter('alpha/decisions', { model: 'typesafe/jev-1.14', state: texto, questions: TOM }))
+  return answers.tom.probabilities
+}
+
+// 2. Haiku: lê o trecho como um editor. Escolhe o que vale checar (corrigindo a transcrição),
+//    anota propostas e ataques com texto (o que o Jev não escreve)
 const EXTRAIR = `Você é editor de uma agência de checagem cobrindo o debate. A transcrição automática pode ter erros.
 Leia o TRECHO do candidato e responda só JSON:
-{"tom":"proposta|ataque|defesa|balanco|outro","afirmacoes":[{"tema":"","afirmacao":"","contexto":"","busca":""}],
-"propostas":[{"titulo":"","explicacao":""}],"ataques":[{"resumo":""}]}
-
-tom: o que predomina no trecho. proposta = diz o que vai fazer; ataque = ofende, acusa ou desqualifica o adversário;
-defesa = rebate acusação; balanco = fala do que já fez ou de dados; outro = cumprimento, regra, pergunta.
+{"afirmacoes":[{"tema":"","afirmacao":"","contexto":"","busca":""}],"propostas":[{"titulo":"","explicacao":""}],"ataques":[{"resumo":""}]}
 
 afirmacoes (máx. 2): só o que REALMENTE vale uma checagem: números, estatísticas, comparações, atos de governo, leis, eventos.
 Ignore retórica e frases de efeito ("não sou candidato de primeira viagem"), opiniões, promessas, ataques, perguntas,
@@ -129,10 +136,10 @@ async function ler(texto, quem, anterior) {
       `FALAS ANTERIORES:\n${anterior}\n\nTRECHO de ${nomeDe(quem)}:\n${texto}` }],
   }))
   const v = json(r.choices[0].message.content)
-  return { tom: v.tom in placar.candidatos[quem].tempo ? v.tom : 'outro', afirmacoes: v.afirmacoes ?? [], propostas: v.propostas ?? [], ataques: v.ataques ?? [] }
+  return { afirmacoes: v.afirmacoes ?? [], propostas: v.propostas ?? [], ataques: v.ataques ?? [] }
 }
 
-// 2. Busca na web, descartando o que foi publicado depois do "agora" (essencial na simulação:
+// 3. Busca na web, descartando o que foi publicado depois do "agora" (essencial na simulação:
 //    as checagens do próprio debate saíram depois e entregariam a resposta)
 const MESES = '|janeiro|fevereiro|março|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro'.split('|')
 function depoisDe(limite, url, titulo, texto) {
@@ -160,7 +167,7 @@ async function buscar(consulta) {
     .slice(0, 5)
 }
 
-// 3. Juiz: lê só as provas filtradas
+// 4. Juiz: lê só as provas filtradas
 const REGRAS = 'Você é um checador de fatos imparcial. Julgue se o CONTEÚDO da afirmação é verdadeiro segundo os dados das PROVAS, ' +
   'NÃO se a pessoa disse a frase. Prefira dados oficiais (IBGE, INPE, Banco Central, TSE) e agências de checagem. ' +
   'Não use nada que só tenha acontecido depois de agora. Responda só JSON: ' +
@@ -191,9 +198,9 @@ async function analisar(texto, quem, t, duracao) {
   historico.push(`${nomeDe(quem)}: ${texto}`)
   if (quem === '0' || texto.length < 40) return
   try {
-    const lido = await ler(texto, quem, anterior)
+    const [lido, tom] = await Promise.all([ler(texto, quem, anterior), medirTom(texto)]) // Jev e Haiku em paralelo
     const c = placar.candidatos[quem]
-    c.tempo[lido.tom] += Math.round(duracao)
+    for (const k in c.tempo) c.tempo[k] = Math.round((c.tempo[k] + duracao * (tom[k] ?? 0)) * 10) / 10
     for (const p of lido.propostas) {
       c.propostas++
       const ja = placar.propostas.find(x => x.quem === quem && x.titulo.toLowerCase() === String(p.titulo).toLowerCase())
