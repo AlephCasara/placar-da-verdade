@@ -1,0 +1,9 @@
+.env
+node_modules/
+tmp/
+.wrangler/
+site/placar.json
+
+.dev.vars*
+!.dev.vars.example
+!.env.example

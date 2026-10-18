@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Placar da Verdade — debate ao vivo</title>
+<meta name="description" content="Cada afirmação dos candidatos no debate, checada por IA em tempo real, com a fonte ao lado.">
+<meta property="og:title" content="Placar da Verdade — debate ao vivo">
+<meta property="og:description" content="Quem falou mais verdade no debate? Checagem automática, fala por fala, com fonte.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --fundo: #e4e6e3;      /* corpo da urna */
+    --tela: #fbfbf8;       /* visor */
+    --tinta: #1b1d1c;
+    --apagado: #5e625f;
+    --borda: #b9bdb8;
+    --verdadeiro: #1d8a4a; /* tecla CONFIRMA */
+    --impreciso: #e07b14;  /* tecla CORRIGE */
+    --falso: #c62828;
+    --sem-dados: #ffffff;  /* tecla BRANCO */
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--fundo); color: var(--tinta);
+    font: 400 1rem/1.5 "Archivo", system-ui, sans-serif;
+  }
+  a { color: inherit; }
+  a:focus-visible, button:focus-visible { outline: 3px solid var(--tinta); outline-offset: 2px; }
+  .pagina { max-width: 1180px; margin: 0 auto; padding: 16px; }
+
+  header { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+  h1 { margin: 0; font-size: clamp(1.9rem, 5vw, 3rem); font-weight: 900; font-stretch: 62%; line-height: 1; letter-spacing: -0.01em; }
+  .status { display: flex; align-items: center; gap: 8px; font-size: .9rem; color: var(--apagado); }
+  .ponto { width: 10px; height: 10px; border-radius: 50%; background: var(--borda); }
+  .status.vivo .ponto { background: var(--falso); animation: pulsa 1.6s infinite; }
+  .status.vivo strong { color: var(--falso); }
+  @keyframes pulsa { 50% { opacity: .25; } }
+
+  .topo { display: grid; grid-template-columns: 1.5fr 1fr; gap: 16px; }
+  .video { aspect-ratio: 16/9; background: var(--tinta); border-radius: 10px; overflow: hidden; }
+  .video iframe { width: 100%; height: 100%; border: 0; display: block; }
+
+  /* visor da urna */
+  .visor { background: var(--tela); border: 2px solid var(--borda); border-radius: 10px; padding: 16px; display: grid; gap: 18px; align-content: start; }
+  .cand h2 { margin: 0; font-size: 1.5rem; font-weight: 800; font-stretch: 75%; }
+  .linha { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+  .pct { font-size: clamp(3rem, 8vw, 4.5rem); font-weight: 900; font-stretch: 62%; line-height: .9; font-variant-numeric: tabular-nums; color: var(--verdadeiro); }
+  .pct small { font-size: .4em; font-weight: 700; }
+  .rotulo { font-size: .85rem; color: var(--apagado); }
+  .barra { display: flex; height: 14px; border-radius: 7px; overflow: hidden; background: var(--fundo); margin-top: 6px; }
+  .barra span { transition: flex-grow .6s ease; }
+  .barra .v { background: var(--verdadeiro); } .barra .i { background: var(--impreciso); } .barra .f { background: var(--falso); }
+  .contagem { font-size: .85rem; color: var(--apagado); margin-top: 4px; font-variant-numeric: tabular-nums; }
+
+  /* teclas de veredito: o elemento-assinatura */
+  .tecla {
+    display: inline-block; min-width: 7.2em; text-align: center; padding: .3em .7em; border-radius: 6px;
+    font-weight: 800; font-stretch: 75%; font-size: .85rem; color: #fff;
+    box-shadow: inset 0 -3px 0 rgb(0 0 0 / .28), 0 1px 0 rgb(0 0 0 / .2);
+  }
+  .tecla.verdadeiro { background: var(--verdadeiro); }
+  .tecla.impreciso { background: var(--impreciso); }
+  .tecla.falso { background: var(--falso); }
+  .tecla.sem_dados { background: var(--sem-dados); color: var(--tinta); border: 1px solid var(--borda); }
+
+  .meio { display: grid; grid-template-columns: 1.5fr 1fr; gap: 16px; margin-top: 16px; align-items: start; }
+  h3 { margin: 0 0 8px; font-size: 1.15rem; font-weight: 800; font-stretch: 75%; }
+  .falas { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+  .fala { background: var(--tela); border-radius: 10px; padding: 12px 14px; border-left: 6px solid var(--borda); }
+  .fala.verdadeiro { border-left-color: var(--verdadeiro); } .fala.impreciso { border-left-color: var(--impreciso); } .fala.falso { border-left-color: var(--falso); }
+  .fala.nova { animation: entra .5s ease-out; }
+  @keyframes entra { from { transform: translateY(-6px); opacity: 0; } }
+  .fala .cab { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: .85rem; color: var(--apagado); }
+  .fala .cab b { color: var(--tinta); font-size: .95rem; }
+  .fala q { display: block; margin: 6px 0 4px; font-size: 1.05rem; max-width: 70ch; }
+  .fala .fonte { font-size: .85rem; color: var(--apagado); }
+  .vazio { background: var(--tela); border-radius: 10px; padding: 20px; color: var(--apagado); }
+
+  aside { display: grid; gap: 16px; }
+  .caixa { background: var(--tela); border-radius: 10px; padding: 14px 16px; font-size: .92rem; }
+  .caixa p { margin: 0 0 8px; } .caixa p:last-child { margin: 0; }
+  .legenda { display: grid; gap: 6px; margin: 8px 0; }
+  .legenda div { display: flex; gap: 10px; align-items: center; }
+  .compartilhar { display: flex; gap: 8px; flex-wrap: wrap; }
+  .compartilhar a { text-decoration: none; font-weight: 700; padding: .55em 1em; border-radius: 6px; background: var(--tinta); color: #fff; }
+
+  @media (max-width: 820px) {
+    .topo, .meio { grid-template-columns: minmax(0, 1fr); }
+    .visor { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+  }
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+</head>
+<body>
+<div class="pagina">
+  <header>
+    <h1>Placar da Verdade</h1>
+    <div class="status" id="status"><span class="ponto"></span><span id="status-texto">Conectando…</span></div>
+  </header>
+
+  <section class="topo">
+    <div class="video" id="video"></div>
+    <div class="visor" id="visor" aria-live="polite"></div>
+  </section>
+
+  <section class="meio">
+    <div>
+      <h3>Fala por fala</h3>
+      <ol class="falas" id="falas"></ol>
+    </div>
+    <aside>
+      <div class="caixa">
+        <h3>Como ler o placar</h3>
+        <div class="legenda">
+          <div><span class="tecla verdadeiro">Verdadeiro</span> os fatos confirmam</div>
+          <div><span class="tecla impreciso">Impreciso</span> exagerado ou fora de contexto</div>
+          <div><span class="tecla falso">Falso</span> os fatos contradizem</div>
+          <div><span class="tecla sem_dados">Sem dados</span> não deu para verificar</div>
+        </div>
+        <p>A porcentagem conta só as falas com veredito. "Sem dados" fica de fora.</p>
+      </div>
+      <div class="caixa">
+        <h3>Como funciona</h3>
+        <p>O áudio do debate é transcrito a cada 10 segundos. Cada afirmação que dá para checar é comparada com a Wikipedia por um modelo de IA (Jev), com as mesmas regras para os dois candidatos.</p>
+        <p><strong>É uma checagem automática e pode errar.</strong> Confira a fonte de cada fala antes de compartilhar.</p>
+      </div>
+      <div class="caixa">
+        <h3>Mostre o placar</h3>
+        <div class="compartilhar">
+          <a id="share-x" target="_blank" rel="noopener">Postar no X</a>
+          <a id="share-zap" target="_blank" rel="noopener">Enviar no WhatsApp</a>
+        </div>
+      </div>
+    </aside>
+  </section>
+</div>
+
+<script>
+const PLACAR = location.hostname === 'localhost' || location.hostname === '127.0.0.1'
+  ? 'placar.json'
+  : 'https://pub-9ba39942d63f4361970d17b4da23b71b.r2.dev/placar.json'
+const ROTULO = { verdadeiro: 'Verdadeiro', impreciso: 'Impreciso', falso: 'Falso', sem_dados: 'Sem dados' }
+const $ = id => document.getElementById(id)
+const esc = s => String(s).replace(/[&<>"']/g, c => `&#${c.charCodeAt(0)};`)
+let dados = null, vistas = new Set(), videoPronto = false
+
+function pct(c) {
+  const total = c.verdadeiro + c.impreciso + c.falso
+  const p = k => total ? Math.round(c[k] / total * 100) : 0
+  return { total, v: p('verdadeiro'), i: p('impreciso'), f: p('falso') }
+}
+
+function desenhar() {
+  const d = dados
+  if (!videoPronto && d.video?.id) {
+    const inicio = d.video.ao_vivo ? 0 : Math.round(d.video.inicio + (Date.now() - d.video.t0) / 1000)
+    $('video').innerHTML = `<iframe src="https://www.youtube.com/embed/${encodeURIComponent(d.video.id)}?autoplay=1&mute=1&start=${inicio}"
+      title="Transmissão do debate" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>`
+    videoPronto = true
+  }
+
+  $('visor').innerHTML = Object.values(d.candidatos).map(c => {
+    const p = pct(c)
+    return `<div class="cand">
+      <h2>${esc(c.nome)}</h2>
+      <div class="linha"><span class="pct">${p.total ? p.v : '–'}<small>%</small></span><span class="rotulo">verdadeiro</span></div>
+      <div class="barra" role="img" aria-label="${p.v}% verdadeiro, ${p.i}% impreciso, ${p.f}% falso">
+        <span class="v" style="flex-grow:${p.v}"></span><span class="i" style="flex-grow:${p.i}"></span><span class="f" style="flex-grow:${p.f}"></span>
+      </div>
+      <div class="contagem">${p.i}% impreciso · ${p.f}% falso<br>${p.total} falas checadas · ${c.sem_dados} sem dados</div>
+    </div>`
+  }).join('')
+
+  $('falas').innerHTML = d.falas.length ? d.falas.map(f => {
+    const id = f.t + f.frase.slice(0, 20), nova = vistas.size && !vistas.has(id)
+    vistas.add(id)
+    return `<li class="fala ${f.veredito}${nova ? ' nova' : ''}">
+      <div class="cab"><span class="tecla ${f.veredito}">${ROTULO[f.veredito]}</span><b>${esc(d.candidatos[f.quem].nome)}</b>
+        <span>${new Date(f.t).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span></div>
+      <q>${esc(f.frase)}</q>
+      <div class="fonte">${f.fonte ? `Fonte: <a href="${esc(f.fonte.url)}" target="_blank" rel="noopener">${esc(f.fonte.titulo)} (Wikipedia)</a>` : 'Sem fonte direta. Veredito pelo conhecimento geral do modelo.'}</div>
+    </li>`
+  }).join('') : '<li class="vazio">O placar começa na primeira afirmação que der para checar. Fique de olho.</li>'
+
+  const resumo = Object.values(d.candidatos).map(c => `${c.nome}: ${pct(c).total ? pct(c).v + '%' : '–'} verdadeiro`).join(' | ')
+  const texto = encodeURIComponent(`Placar da Verdade do debate, ao vivo. ${resumo}\n${location.href}`)
+  $('share-x').href = `https://x.com/intent/post?text=${texto}`
+  $('share-zap').href = `https://wa.me/?text=${texto}`
+}
+
+function relogio() {
+  if (!dados) return
+  const s = Math.round((Date.now() - dados.atualizado) / 1000)
+  const vivo = s < 120
+  $('status').classList.toggle('vivo', vivo)
+  $('status-texto').innerHTML = vivo ? `<strong>Ao vivo</strong> · checagem ~15s atrás da TV` : `Última atualização há ${Math.round(s / 60)} min`
+}
+
+async function buscar() {
+  try {
+    const r = await fetch(`${PLACAR}?t=${Math.floor(Date.now() / 3000)}`)
+    if (!r.ok) throw new Error(r.status)
+    const novo = await r.json()
+    if (!dados || novo.atualizado !== dados.atualizado) { dados = novo; desenhar() }
+  } catch { if (!dados) $('status-texto').textContent = 'Sem conexão com o placar. Tentando de novo…' }
+  relogio()
+}
+buscar(); setInterval(buscar, 4000)
+</script>
+</body>
+</html>

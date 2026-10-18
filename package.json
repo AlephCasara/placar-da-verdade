@@ -1,0 +1,16 @@
+{
+  "name": "placar-da-verdade",
+  "version": "1.0.0",
+  "description": "",
+  "scripts": {
+    "robo": "node --env-file=.env robo.mjs",
+    "deploy": "wrangler deploy"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "devDependencies": {
+    "wrangler": "^4.151.1"
+  }
+}
