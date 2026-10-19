@@ -104,6 +104,19 @@
   .fato h3 { margin: 0 0 8px; font-size: 1.2rem; font-weight: 900; font-stretch: 62%; }
   .decl { border-left: 5px solid var(--borda); padding: 4px 0 4px 12px; }
   .decl + .decl { margin-top: 12px; }
+  .tecla.em_revisao { background: var(--fundo); color: var(--tinta); border: 1px dashed var(--apagado); }
+  .decl .literal { margin: 0 0 6px; font-size: .9rem; font-style: italic; color: var(--apagado); max-width: 68ch; }
+  .decl .corrigido { margin: 4px 0; font-size: .85rem; color: var(--apagado); max-width: 68ch; }
+  .decl .corrigido::before { content: "✎ "; }
+  /* Card da revisão pós-debate */
+  .revisao { background: var(--tela); border-radius: 10px; padding: 16px; margin-top: 16px; border-left: 6px solid var(--proposta); }
+  .revisao h2 { margin: 0 0 6px; font-size: 1.4rem; font-weight: 900; font-stretch: 62%; }
+  .revisao p { margin: 0 0 8px; max-width: 80ch; }
+  .revisao summary { cursor: pointer; font-weight: 700; }
+  .revisao ul { margin: 8px 0 0; padding-left: 20px; max-height: 28rem; overflow-y: auto; }
+  .revisao li { margin-bottom: 8px; }
+  .revisao li small { display: block; color: var(--apagado); }
+  .rev-de { font-weight: 700; white-space: nowrap; }
   .decl.verdadeiro { border-left-color: var(--verdadeiro); } .decl.impreciso { border-left-color: var(--impreciso); } .decl.falso { border-left-color: var(--falso); }
   .decl .cab { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: .85rem; color: var(--apagado); }
   .decl .cab b { color: var(--tinta); font-size: 1rem; }
@@ -152,6 +165,12 @@
   /* Aviso antes do debate, no lugar do vídeo */
   .aviso { height: 100%; display: grid; place-items: center; text-align: center; padding: 24px; color: #fff;
     font-size: clamp(1.4rem, 4vw, 2.4rem); font-weight: 900; font-stretch: 62%; line-height: 1.1; }
+  /* Entre debates: tela com o próximo debate e contagem regressiva no lugar da live */
+  .video:has(.tela-fim) { aspect-ratio: auto; min-height: 16rem; }
+  .tela-fim > div { display: grid; gap: 10px; max-width: 34rem; }
+  .tela-fim small { font-size: .9rem; font-weight: 400; font-stretch: 100%; color: var(--borda); line-height: 1.4; }
+  .tela-fim .rotulo-fim { font-size: 1rem; font-weight: 700; font-stretch: 100%; color: var(--borda); }
+  .regressiva { font-variant-numeric: tabular-nums; color: var(--impreciso); font-size: clamp(2rem, 7vw, 3.4rem); }
 
   /* Linha do tempo: quando cada um atacou e propôs (colunas de 5 min, mesma escala para os dois) */
   .linha-tempo { background: var(--tela); border-radius: 10px; padding: 16px; margin-top: 16px; }
@@ -231,6 +250,8 @@
     </div>
   </section>
 
+  <section class="revisao" id="revisao" hidden></section>
+
   <section class="tom" aria-live="polite">
     <h2>Propostas ou ataques?</h2>
     <p>Quantas vezes cada um apresentou uma proposta concreta e quantas vezes atacou o adversário. A barra mostra como cada um usou o tempo de fala.</p>
@@ -258,6 +279,7 @@
           <div><span class="tecla impreciso">Impreciso</span> exagerado ou fora de contexto</div>
           <div><span class="tecla falso">Falso</span> os dados contradizem</div>
           <div><span class="tecla sem_dados">Sem dados</span> não deu para verificar</div>
+          <div><span class="tecla em_revisao">Em revisão</span> o áudio não confirmou a frase; fica fora do placar até a conferência</div>
         </div>
         <p>O Mentirômetro pende para quem teve mais afirmações falsas ou imprecisas (imprecisa conta meio ponto). "Sem dados" fica de fora.</p>
       </div>
@@ -265,6 +287,7 @@
         <h2>Como funciona</h2>
         <p>O áudio do debate é transcrito a cada 10 segundos e a voz identifica quem está falando. Uma IA lê cada fala e separa as afirmações que valem checagem (números, dados, atos de governo), as propostas concretas e os ataques ao adversário. Retórica e opinião não viram checagem.</p>
         <p>Cada afirmação é buscada na web (agências de checagem, imprensa e dados oficiais) e julgada com as mesmas regras para os dois candidatos.</p>
+        <p>Antes de publicar um "falso" ou "impreciso", o trecho é ouvido de novo por outros modelos para confirmar a frase exata. Se o áudio não confirmar, o fato fica "em revisão" e não conta no placar.</p>
         <p><strong>É uma checagem automática e pode errar.</strong> Confira a fonte antes de compartilhar.</p>
       </div>
       <div class="caixa">

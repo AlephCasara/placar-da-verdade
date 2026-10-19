@@ -1,13 +1,16 @@
 const LOCAL = location.hostname === 'localhost' || location.hostname === '127.0.0.1'
-const PLACAR = LOCAL ? 'placar.json' : 'https://placar-dados.zenithonacademy.com.br/placar.json'
-const ROTULO = { verdadeiro: 'Verdadeiro', impreciso: 'Impreciso', falso: 'Falso', sem_dados: 'Sem dados' }
+// ?d=2026-10-18 abre o arquivo de um debate passado (placar-2026-10-18.json); sem ?d, o placar ao vivo
+const ARQUIVO = new URLSearchParams(location.search).get('d')?.match(/^[\w-]{1,40}$/)?.[0] ?? null
+const PLACAR = (LOCAL ? '' : 'https://placar-dados.zenithonacademy.com.br/') + (ARQUIVO ? `placar-${ARQUIVO}.json` : 'placar.json')
+const ROTULO = { verdadeiro: 'Verdadeiro', impreciso: 'Impreciso', falso: 'Falso', sem_dados: 'Sem dados', em_revisao: 'Em revisão' }
 const $ = id => document.getElementById(id)
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => `&#${c.charCodeAt(0)};`)
 const host = url => { try { return new URL(url).hostname.replace(/^www\./, '') } catch { return '' } }
 // Defesa extra: o placar só é gravado pelo robô, mas o site não confia cegamente nele
 const link = url => /^https?:\/\//i.test(url ?? '') ? esc(url) : '#'
 const vered = v => v in ROTULO ? v : 'sem_dados'
-let dados = null, vistos = new Set(), videoPronto = false
+const MINIMO = 3 // fatos checáveis (sem "sem dados") de cada lado antes de o Mentirômetro apontar alguém
+let dados = null, vistos = new Set(), videoPronto = false, modoVideo = null
 
 function conta(c) {
   const total = c.verdadeiro + c.impreciso + c.falso
@@ -18,16 +21,20 @@ function conta(c) {
 
 function desenhar() {
   const d = dados, [A, B] = Object.values(d.candidatos), ca = conta(A), cb = conta(B)
-  if (!videoPronto) mostrarVideo(videoVisivel)
+  if (!videoPronto || modoVideo !== (d.encerrado ? 'fim' : d.video?.id)) mostrarVideo(videoVisivel)
 
-  // Mentirômetro: ponteiro para a esquerda = A erra mais, centro = empate, direita = B erra mais
-  const angulo = (ca.total && cb.total) ? Math.max(-80, Math.min(80, (cb.erro - ca.erro) * 160)) : 0
+  // Mentirômetro: ponteiro para a esquerda = A erra mais, centro = empate, direita = B erra mais.
+  // Escala linear: diferença de 100 pontos no índice de erro = ponteiro deitado (90°), 50 pontos = 45°
+  // Só mexe com MINIMO fatos checáveis de cada lado: com 1 ou 2, um único veredito já parece placar decidido
+  const pronto = ca.total >= MINIMO && cb.total >= MINIMO
+  const angulo = pronto ? (cb.erro - ca.erro) * 90 : 0
   $('ponteiro').style.transform = `rotate(${angulo}deg)`
   $('lado-a').textContent = A.nome; $('lado-b').textContent = B.nome
   const dif = Math.abs(ca.erro - cb.erro)
-  $('medidor-texto').innerHTML = !(ca.total && cb.total) ? 'Esperando os primeiros fatos<small>precisa de pelo menos um fato checado de cada lado</small>'
+  const base = `<small>com base em ${ca.total} ${ca.total === 1 ? 'fato checável' : 'fatos checáveis'} de ${esc(A.nome)} e ${cb.total} de ${esc(B.nome)} (sem dados fica de fora)</small>`
+  $('medidor-texto').innerHTML = (!pronto ? `Esperando mais fatos<small>o ponteiro só se mexe com pelo menos ${MINIMO} fatos checáveis de cada lado</small>`
     : dif < 0.1 ? 'Empate técnico<small>os dois erram parecido até agora</small>'
-    : `${esc(ca.erro > cb.erro ? A.nome : B.nome)} está errando mais<small>${Math.round(Math.max(ca.erro, cb.erro) * 100)}% contra ${Math.round(Math.min(ca.erro, cb.erro) * 100)}% de índice de erro</small>`
+    : `${esc(ca.erro > cb.erro ? A.nome : B.nome)} está errando mais<small>${Math.round(Math.max(ca.erro, cb.erro) * 100)}% contra ${Math.round(Math.min(ca.erro, cb.erro) * 100)}% de índice de erro</small>`) + base
   $('medidor').setAttribute('aria-label', `Mentirômetro: ${A.nome} ${Math.round(ca.erro * 100)}% de erro, ${B.nome} ${Math.round(cb.erro * 100)}%`)
 
   $('cands').innerHTML = [[A, ca], [B, cb]].map(([c, p]) => `<div class="cand">
@@ -47,14 +54,17 @@ function desenhar() {
         <div class="cab"><span class="tecla ${vered(x.veredito)}">${ROTULO[vered(x.veredito)]}</span><b>${esc(d.candidatos[x.quem].nome)}</b>
           <span>${new Date(x.t).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' })}</span></div>
         <p class="disse">${esc(x.afirmacao)}</p>
+        ${x.literal ? `<p class="literal">Frase dita: “${esc(x.literal)}”</p>` : ''}
         ${x.contexto ? `<p class="ctx">${esc(x.contexto)}</p>` : ''}
         ${x.motivo ? `<p class="motivo">${esc(x.motivo)}</p>` : ''}
+        ${x.corrigido ? `<p class="corrigido">Revisado após o debate · ao vivo era <b>${ROTULO[vered(x.corrigido.antes)]}</b>${x.corrigido.afirmacao_antes ? ` (o robô tinha entendido: “${esc(x.corrigido.afirmacao_antes)}”)` : ''}</p>` : ''}
         <div class="fonte">${x.fonte ? `Fonte: <a href="${link(x.fonte.url)}" target="_blank" rel="noopener">${esc(x.fonte.titulo)}</a> (${esc(host(x.fonte.url))})` : 'Nenhuma fonte encontrada.'}</div>
         <button class="card-botao" type="button" data-f="${fi}" data-d="${di}">Compartilhar este fato</button>
       </div>`).join('')}</li>`
   }).join('') : '<li class="vazio">Os fatos aparecem aqui quando um candidato citar um dado que dá para checar.</li>'
 
   desenharLinha(d)
+  desenharRevisao(d)
 
   // Propostas ou ataques?
   const TOM = [['proposta', 'propondo'], ['ataque', 'atacando'], ['defesa', 'se defendendo'], ['balanco', 'falando do passado']]
@@ -81,9 +91,27 @@ function desenhar() {
 
   const resumo = `${A.nome} ${ca.total ? Math.round(ca.erro * 100) + '%' : '–'} x ${B.nome} ${cb.total ? Math.round(cb.erro * 100) + '%' : '–'} de erro`
   const tons = `${A.nome}: ${A.propostas ?? 0} propostas x ${A.ataques ?? 0} ataques. ${B.nome}: ${B.propostas ?? 0} propostas x ${B.ataques ?? 0} ataques`
-  const texto = encodeURIComponent(`Mentirômetro do debate, ao vivo: ${resumo}\n${tons}\n${location.href}`)
+  const texto = encodeURIComponent(`Mentirômetro do debate${d.encerrado ? ' (placar final)' : ', ao vivo'}: ${resumo}\n${tons}\n${location.href}`)
   $('share-x').href = `https://x.com/intent/post?text=${texto}`
   $('share-zap').href = `https://wa.me/?text=${texto}`
+}
+
+// Card da revisão pós-debate: o que mudou em relação ao placar ao vivo, com link para a versão original
+function desenharRevisao(d) {
+  const r = d.revisao
+  $('revisao').hidden = !r
+  if (!r) return
+  const [A, B] = Object.keys(d.candidatos), erro = c => { const t = c.verdadeiro + c.impreciso + c.falso; return t ? Math.round((c.falso + c.impreciso / 2) / t * 100) + '%' : '–' }
+  const mudou = r.mudancas.filter(m => m.depois && m.depois !== m.antes), saiu = r.mudancas.filter(m => !m.depois)
+  $('revisao').innerHTML = `<h2>Dados revisados e corrigidos pelo ${esc(r.por)} após o debate</h2>
+    <p>${esc(r.resumo)}</p>
+    <p class="rev-numeros">${mudou.length} vereditos corrigidos · ${saiu.length} checagens removidas ·
+      índice de erro ao vivo → revisado: <b>${esc(d.candidatos[A].nome)} ${erro(r.antes[A])} → ${erro(r.depois[A])}</b>,
+      <b>${esc(d.candidatos[B].nome)} ${erro(r.antes[B])} → ${erro(r.depois[B])}</b></p>
+    <details><summary>Ver tudo o que mudou</summary><ul>${r.mudancas.map(m => `<li><b>${esc(m.quem)}</b>: ${esc(m.afirmacao)}
+      <span class="rev-de">${ROTULO[vered(m.antes)]} → ${m.depois ? (m.depois === m.antes ? 'mantido, explicação corrigida' : ROTULO[vered(m.depois)]) : 'removida'}</span>
+      <small>${esc(m.motivo)}</small></li>`).join('')}</ul></details>
+    ${r.ao_vivo ? `<p><a href="?d=${encodeURIComponent(r.ao_vivo)}">Ver o placar como ficou ao vivo, sem a revisão</a></p>` : ''}`
 }
 
 // Linha do tempo: colunas de 5 min, do primeiro minuto com algo até o último, mesma escala para os dois
@@ -157,6 +185,13 @@ $('fatos').addEventListener('click', async e => {
 
 function relogio() {
   if (!dados) return
+  if (dados.encerrado) {
+    $('status').classList.remove('vivo'); $('faixa-status').classList.remove('vivo')
+    $('status-texto').textContent = 'Debate encerrado · placar final'
+    $('faixa-texto').textContent = 'Debate encerrado'
+    $('duracao').innerHTML = `próximo debate em <span class="regressiva">${falta(dados.encerrado.proximo)}</span>`
+    return
+  }
   const s = Math.round((Date.now() - dados.atualizado) / 1000), vivo = s < 120
   $('status').classList.toggle('vivo', vivo)
   const reprise = dados.video && !dados.video.ao_vivo
@@ -187,10 +222,13 @@ function mostrarVideo(visivel) {
   $('com-video').hidden = !visivel
   $('sem-video').hidden = visivel
   $('topo').classList.toggle('sem-video', !visivel)
+  $('ocultar').hidden = $('ver-live').hidden = !!dados?.encerrado // entre debates não há live para ocultar ou abrir
+  modoVideo = dados?.encerrado ? 'fim' : dados?.video?.id
+  if (dados?.encerrado) { $('video').innerHTML = telaFim(dados); videoPronto = true; return relogio() }
   if (!visivel) { $('video').innerHTML = ''; videoPronto = !!dados; return relogio() }
   if (!dados?.video?.id) { $('video').innerHTML = dados?.aviso ? `<div class="aviso">${esc(dados.aviso)}</div>` : ''; return }
   const inicio = dados.video.ao_vivo ? 0 : Math.round(segundosDeDebate())
-  $('video').innerHTML = `<iframe src="https://www.youtube.com/embed/${encodeURIComponent(dados.video.id)}?autoplay=1&mute=1&start=${inicio}"
+  $('video').innerHTML = `<iframe src="https://www.youtube.com/embed/${encodeURIComponent(dados.video.id)}?autoplay=1&mute=1&enablejsapi=1&start=${inicio}"
     title="Transmissão do debate" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>`
   videoPronto = true
 }
@@ -208,7 +246,32 @@ async function buscar() {
 }
 // Aba em segundo plano não busca: economiza a internet de quem assiste e requisições no servidor
 buscar(); setInterval(() => { if (!document.hidden) buscar() }, 6000)
-document.addEventListener('visibilitychange', () => { if (!document.hidden) buscar() })
+document.addEventListener('visibilitychange', () => { if (!document.hidden) { buscar(); voltarAoVivo() } })
+// O navegador pausa vídeo mudo em aba escondida; na volta, a live ficaria atrasada. Pula para o ao vivo
+// (comandos do player do YouTube por postMessage, sem carregar o script da API; mantém o som como a pessoa deixou)
+function voltarAoVivo() {
+  const f = dados?.video?.ao_vivo && $('video').querySelector('iframe')
+  if (!f) return
+  for (const [func, args] of [['seekTo', [1e9, true]], ['playVideo', []]])
+    f.contentWindow.postMessage(JSON.stringify({ event: 'command', func, args }), 'https://www.youtube.com')
+}
+
+// Entre debates o placar final traz "encerrado" com a data do próximo: no lugar da live entra esta tela com contagem regressiva.
+// Quando o robô liga no próximo debate, o placar novo não tem "encerrado" e a live volta sozinha
+function falta(quando) {
+  const s = Math.floor((Date.parse(quando) - Date.now()) / 1000)
+  if (s <= 0) return 'começando agora'
+  const d = Math.floor(s / 86400), dois = n => String(n).padStart(2, '0')
+  return `${d ? d + (d === 1 ? ' dia ' : ' dias ') : ''}${dois(Math.floor(s % 86400 / 3600))}h ${dois(Math.floor(s % 3600 / 60))}min ${dois(s % 60)}s`
+}
+const telaFim = d => `<div class="aviso tela-fim"><div>
+  <small>Debate de ${new Date(d.video?.data ?? d.atualizado).toLocaleDateString('pt-BR', { day: 'numeric', month: 'numeric', timeZone: 'America/Sao_Paulo' })} encerrado · o placar final está logo abaixo</small>
+  <span class="rotulo-fim">Próximo debate</span>
+  <b>${esc(d.encerrado.texto)}</b>
+  <div class="regressiva" role="timer">${falta(d.encerrado.proximo)}</div>
+  <small>Estamos aprimorando os métodos de checagem para o próximo debate.</small>
+</div></div>`
+setInterval(() => { if (dados?.encerrado) for (const el of document.querySelectorAll('.regressiva')) el.textContent = falta(dados.encerrado.proximo) }, 1000)
 
 // Quantas pessoas estão com o site aberto agora e quantas visitas já teve
 function audiencia(espera = 2000, primeira = true) {
