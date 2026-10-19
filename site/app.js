@@ -127,9 +127,8 @@ function desenharFatos(d) {
         ${x.motivo ? `<p class="motivo">${esc(x.motivo)}</p>` : ''}
         ${x.corrigido ? `<p class="corrigido">Revisado após o debate · ao vivo era <b>${ROTULO[vered(x.corrigido.antes)]}</b>${x.corrigido.afirmacao_antes ? ` (o robô tinha entendido: “${esc(x.corrigido.afirmacao_antes)}”)` : ''}</p>` : ''}
         <div class="fonte">${x.fonte ? `Fonte: <a href="${link(x.fonte.url)}" target="_blank" rel="noopener">${esc(x.fonte.titulo)}</a> (${esc(host(x.fonte.url))})` : 'Nenhuma fonte encontrada.'}</div>
-        <div class="acoes"><button class="card-botao" type="button" data-id="${x.id}">Compartilhar este fato</button>
-          <button class="card-botao copiar-link" type="button" data-id="${x.id}">Copiar link</button></div>
       </details>
+      <button class="partilhar" type="button" data-id="${x.id}" aria-label="Compartilhar este fato">↗ Compartilhar</button>
     </li>`
   }).join('') : itens.length ? '<li class="vazio">Nenhum fato com esses filtros. <button class="botao-texto" type="button" data-limpar="tudo">Limpar filtros</button></li>'
     : '<li class="vazio">Os fatos aparecem aqui quando um candidato citar um dado que dá para checar.</li>'
@@ -185,11 +184,47 @@ $('faixa').addEventListener('click', e => {
   if (!c) return
   e.preventDefault(); history.replaceState(null, '', '#fato-' + c.dataset.id); irPara(c.dataset.id)
 })
-async function copiarLink(b) {
-  const url = `${location.origin}${location.pathname}${location.search}#fato-${b.dataset.id}`
-  try { await navigator.clipboard.writeText(url); b.textContent = 'Link copiado ✓' } catch { prompt('Copie o link do fato:', url) }
-  setTimeout(() => { b.textContent = 'Copiar link' }, 2000)
+// ---------- Compartilhar um fato: janela com a prévia do card e os atalhos ----------
+const urlDoFato = id => `${location.origin}${location.pathname}${location.search}#fato-${id}`
+const imagens = new Map() // id → Blob do card já gerado (abrir de novo é instantâneo)
+let fatoAberto = null
+async function abrirPartilha(x) {
+  fatoAberto = x
+  const nome = dados.candidatos[x.quem].nome, v = vered(x.veredito), url = urlDoFato(x.id)
+  const texto = `${nome} disse: "${x.afirmacao}" → ${ROTULO[v]}.${x.motivo ? ` ${x.motivo}` : ''}`
+  $('p-veredito').className = `tecla ${v}`; $('p-veredito').textContent = ROTULO[v]
+  $('p-frase').textContent = `${nome}: “${x.afirmacao}”`
+  $('p-zap').href = `https://wa.me/?text=${encodeURIComponent(`${texto}\n\nVeja a fonte: ${url}`)}`
+  $('p-x').href = `https://x.com/intent/post?text=${encodeURIComponent(`${nome} disse: "${x.afirmacao.slice(0, 150)}" → ${ROTULO[v]}`)}&url=${encodeURIComponent(url)}`
+  $('p-copiar').textContent = 'Copiar link'
+  $('p-mais').hidden = !navigator.share
+  $('p-previa').innerHTML = '<div class="p-carregando">Gerando o card…</div>'
+  $('partilha').showModal()
+  if (!imagens.has(x.id)) imagens.set(x.id, await cardDoFato(x, nome))
+  if (fatoAberto !== x) return // a pessoa já abriu outro fato
+  const img = new Image(); img.alt = `Card do fato: ${nome}, ${ROTULO[v]}`; img.src = URL.createObjectURL(imagens.get(x.id))
+  $('p-previa').replaceChildren(img)
 }
+const arquivoDoCard = () => new File([imagens.get(fatoAberto.id)], 'placar-da-verdade.png', { type: 'image/png' })
+$('p-copiar').onclick = async () => {
+  try { await navigator.clipboard.writeText(urlDoFato(fatoAberto.id)); $('p-copiar').textContent = 'Link copiado ✓'; $('p-copiar').classList.add('ok') }
+  catch { prompt('Copie o link do fato:', urlDoFato(fatoAberto.id)) }
+  setTimeout(() => { $('p-copiar').textContent = 'Copiar link'; $('p-copiar').classList.remove('ok') }, 2000)
+}
+$('p-baixar').onclick = async () => {
+  if (!imagens.has(fatoAberto.id)) imagens.set(fatoAberto.id, await cardDoFato(fatoAberto, dados.candidatos[fatoAberto.quem].nome))
+  const l = document.createElement('a'); l.href = URL.createObjectURL(arquivoDoCard()); l.download = 'placar-da-verdade.png'; l.click()
+  setTimeout(() => URL.revokeObjectURL(l.href), 5000)
+}
+$('p-mais').onclick = async () => { // menu nativo do celular (Instagram, Telegram...), com a imagem quando o aparelho aceita
+  const x = fatoAberto, dadosShare = { title: 'Placar da Verdade', text: `${dados.candidatos[x.quem].nome}: "${x.afirmacao}" → ${ROTULO[vered(x.veredito)]}`, url: urlDoFato(x.id) }
+  try {
+    if (imagens.has(x.id) && navigator.canShare?.({ files: [arquivoDoCard()] })) await navigator.share({ ...dadosShare, files: [arquivoDoCard()] })
+    else await navigator.share(dadosShare)
+  } catch {} // cancelar o menu não é erro
+}
+$('p-fechar').onclick = () => $('partilha').close()
+$('partilha').addEventListener('click', e => { if (e.target === $('partilha')) $('partilha').close() }) // clique fora fecha
 
 // Cliques nos filtros, na linha do tempo e no aviso de fatos novos
 function refazer() { desenharFatos(dados); desenharLinha(dados); desenharRevisao(dados) }
@@ -267,7 +302,7 @@ async function cardDoFato(x, nome) {
   g.fillStyle = '#e4e6e3'; g.fillRect(0, 0, W, H)
   g.fillStyle = '#fbfbf8'; g.beginPath(); g.roundRect(40, 40, W - 80, H - 80, 36); g.fill()
   g.fillStyle = '#1b1d1c'; fonte(900, 110, true); g.fillText('Placar da Verdade', M, 210)
-  g.fillStyle = '#5e625f'; fonte(400, 38); g.fillText('Debate presidencial · checagem ao vivo', M, 275)
+  g.fillStyle = '#5e625f'; fonte(400, 38); g.fillText(x.corrigido ? 'Debate presidencial · revisado após o debate' : 'Debate presidencial · checagem ao vivo', M, 275)
   g.fillStyle = '#1b1d1c'; fonte(800, 72, true); let y = escrever(`${nome} disse:`, 430, 72, 1.1, 2)
   fonte(400, 58); y = escrever(x.afirmacao, y + 30, 58, 1.3, 7)
   const v = vered(x.veredito); y += 60
@@ -283,22 +318,10 @@ async function cardDoFato(x, nome) {
   return new Promise(ok => cv.toBlob(ok, 'image/png'))
 }
 
-$('fatos').addEventListener('click', async e => {
-  const c = e.target.closest('.copiar-link')
-  if (c) return copiarLink(c)
-  const b = e.target.closest('.card-botao')
-  if (!b || !dados) return
-  const x = itens.find(i => i.id === b.dataset.id)
-  if (!x) return
-  const nome = dados.candidatos[x.quem].nome
-  b.disabled = true; b.textContent = 'Gerando imagem…'
-  try {
-    const arquivo = new File([await cardDoFato(x, nome)], 'placar-da-verdade.png', { type: 'image/png' })
-    const texto = `${nome}: "${x.afirmacao}" → ${ROTULO[vered(x.veredito)]}. Veja ao vivo: ${location.origin}`
-    if (navigator.canShare?.({ files: [arquivo] })) await navigator.share({ files: [arquivo], text: texto })
-    else { const a = document.createElement('a'); a.href = URL.createObjectURL(arquivo); a.download = arquivo.name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 5000) }
-  } catch {} // quem cancela o compartilhar cai aqui; não é erro
-  b.disabled = false; b.textContent = 'Compartilhar este fato'
+$('fatos').addEventListener('click', e => {
+  const b = e.target.closest('.partilhar')
+  const x = b && dados && itens.find(i => i.id === b.dataset.id)
+  if (x) abrirPartilha(x)
 })
 
 function relogio() {

@@ -235,6 +235,34 @@
   .lt-eixo span { flex: 0 1 28px; min-width: 0; white-space: nowrap; overflow: visible; }
 
   /* Botão de gerar o card do fato */
+  /* Botão de compartilhar no card e janela de compartilhar (folha que sobe no celular, janela no centro no computador) */
+  .partilhar { margin-top: 8px; border: 1px solid var(--borda); background: var(--tela); color: var(--tinta); border-radius: 999px; padding: .35em .9em; font: inherit; font-size: .85rem; font-weight: 800; cursor: pointer; transition: transform .15s, background .15s; }
+  .partilhar:hover { background: var(--tinta); color: #fff; border-color: var(--tinta); }
+  .partilhar:active { transform: scale(.95); }
+  .partilhar:focus-visible, .p-botao:focus-visible, .p-fechar:focus-visible { outline: 3px solid var(--tinta); outline-offset: 2px; }
+  .partilha { border: 0; border-radius: 16px; padding: 18px; width: min(560px, 100vw - 32px); max-height: calc(100vh - 32px); background: var(--tela); color: var(--tinta); box-shadow: 0 20px 60px rgb(0 0 0 / .35); }
+  .partilha::backdrop { background: rgb(27 29 28 / .55); }
+  .partilha[open] { animation: sobe .25s ease-out; }
+  @keyframes sobe { from { transform: translateY(24px); opacity: 0; } }
+  .p-topo { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .p-topo h2 { margin: 0; font-size: 1.5rem; font-weight: 900; font-stretch: 62%; }
+  .p-fechar { border: 0; background: var(--fundo); border-radius: 50%; width: 2.2em; height: 2.2em; font: inherit; font-weight: 800; cursor: pointer; }
+  .p-resumo { margin: 8px 0 12px; font-size: .95rem; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+  .p-resumo .tecla { min-width: 0; margin-right: 4px; }
+  .p-previa { display: flex; align-items: center; justify-content: center; padding: 10px; background: var(--fundo); border-radius: 10px; height: min(42vh, 380px); overflow: hidden; }
+  .p-previa img { max-height: 100%; max-width: 100%; border-radius: 8px; box-shadow: 0 6px 20px rgb(0 0 0 / .18); animation: entra .3s ease-out; }
+  .p-carregando { color: var(--apagado); font-size: .9rem; animation: pulsa 1.2s infinite; }
+  .p-botoes { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; margin-top: 14px; }
+  .p-botao { display: block; text-align: center; text-decoration: none; border: 1px solid var(--borda); background: var(--tela); color: var(--tinta); border-radius: 10px; padding: .75em .6em; font: inherit; font-weight: 800; cursor: pointer; transition: transform .15s; }
+  .p-botao:active { transform: scale(.97); }
+  .p-botao.zap { background: #1d8a4a; color: #fff; border-color: #1d8a4a; }
+  .p-botao.ok { background: var(--verdadeiro); color: #fff; border-color: var(--verdadeiro); }
+  .p-nota { margin: 10px 0 0; font-size: .8rem; color: var(--apagado); }
+  @media (max-width: 600px) {
+    .partilha { margin: auto 0 0; width: 100vw; max-width: 100vw; border-radius: 16px 16px 0 0; padding-bottom: max(18px, env(safe-area-inset-bottom)); }
+    .partilha[open] { animation: folha .28s ease-out; }
+    @keyframes folha { from { transform: translateY(100%); } }
+  }
   .card-botao { margin-top: 6px; background: none; border: 1px solid var(--borda); border-radius: 6px; padding: .3em .8em; font: inherit; font-size: .85rem; font-weight: 700; cursor: pointer; color: var(--tinta); }
   .card-botao:focus-visible { outline: 3px solid var(--tinta); outline-offset: 2px; }
 
@@ -243,7 +271,7 @@
   .story .pagina { max-width: 520px; }
   .story .topo, .story .meio { grid-template-columns: minmax(0, 1fr); }
   .story #com-video, .story #ver-live, .story aside, .story .propostas, .story .tom > p,
-  .story .card-botao, .story .decl .fonte, .story .decl .ctx, .story .filtros, .story .destaques, .story .revisao, .story .novos, .story details summary { display: none !important; }
+  .story .partilhar, .story .card-botao, .story .decl .fonte, .story .decl .ctx, .story .filtros, .story .destaques, .story .revisao, .story .novos, .story details summary { display: none !important; }
   .story .fatos > li:not(:first-child) { display: none; }
   .story h2.secao::after { content: " (o mais recente)"; font-weight: 400; color: var(--apagado); font-size: .8em; }
   .story .tom-cands { grid-template-columns: 1fr 1fr; gap: 14px; }
@@ -355,6 +383,19 @@
     <div class="propostas-cols" id="lista-propostas"></div>
   </section>
   <button class="novos" id="novos" type="button" hidden></button>
+  <dialog class="partilha" id="partilha" aria-labelledby="p-titulo">
+    <div class="p-topo"><h2 id="p-titulo">Compartilhar este fato</h2><button class="p-fechar" id="p-fechar" type="button" aria-label="Fechar">✕</button></div>
+    <p class="p-resumo"><span id="p-veredito"></span> <span id="p-frase"></span></p>
+    <div class="p-previa" id="p-previa"></div>
+    <div class="p-botoes">
+      <a class="p-botao zap" id="p-zap" target="_blank" rel="noopener">WhatsApp</a>
+      <a class="p-botao" id="p-x" target="_blank" rel="noopener">Postar no X</a>
+      <button class="p-botao" id="p-copiar" type="button">Copiar link</button>
+      <button class="p-botao" id="p-baixar" type="button">Baixar imagem</button>
+      <button class="p-botao" id="p-mais" type="button" hidden>Mais opções…</button>
+    </div>
+    <p class="p-nota">A imagem é do tamanho de Stories e Status. O link leva direto a este fato, com a fonte.</p>
+  </dialog>
   <p class="rodape-story">placar.zenithonacademy.com.br</p>
 </div>
 
