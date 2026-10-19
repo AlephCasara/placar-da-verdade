@@ -43,7 +43,7 @@ function desenhar() {
       <div class="barra" role="img" aria-label="${p.v}% verdadeiro, ${p.i}% impreciso, ${p.f}% falso">
         <span class="v" style="flex-grow:${p.v}"></span><span class="i" style="flex-grow:${p.i}"></span><span class="f" style="flex-grow:${p.f}"></span>
       </div>
-      <div class="contagem">${c.verdadeiro} verdadeiro · ${c.impreciso} impreciso · ${c.falso} falso<br>${c.sem_dados} sem dados</div>
+      <div class="contagem"><span>${c.verdadeiro} verdadeiro</span> · <span>${c.impreciso} impreciso</span> · <span>${c.falso} falso</span><br><span>${c.sem_dados} sem dados</span></div>
     </div>`).join('')
 
   desenharDestaques(d)
@@ -153,7 +153,7 @@ function desenharDestaques(d) {
   $('destaques').hidden = !lista.length
   if (!lista.length) return
   $('destaques-titulo').textContent = mudaram.length ? 'Destaques da revisão: vereditos que mudaram' : 'Destaques: últimos falsos e imprecisos'
-  $('faixa').innerHTML = lista.map(x => { const v = vered(x.veredito); return `<a class="dest ${v}" href="#fato-${x.id}" data-id="${x.id}">
+  $('faixa').innerHTML = lista.map(x => { const v = vered(x.veredito); return `<a class="dest ${v}" href="#fato-${x.id}" data-id="${x.id}" draggable="false">
     <span class="tecla ${v}">${ROTULO[v]}</span>${x.corrigido ? ` <small>era ${ROTULO[vered(x.corrigido.antes)]}</small>` : ''}
     <b>${esc(d.candidatos[x.quem]?.nome)}</b><span>${esc(x.afirmacao)}</span></a>` }).join('')
 }
@@ -169,8 +169,19 @@ function irPara(id) {
 }
 const hashId = () => location.hash.match(/^#fato-([\w]+)$/)?.[1]
 addEventListener('hashchange', () => hashId() && irPara(hashId()))
+// Destaques: no computador dá para arrastar com o mouse (no celular o dedo já arrasta)
+let arrasto = null, arrastou = false
+$('faixa').addEventListener('pointerdown', e => { if (e.pointerType === 'mouse' && e.button === 0) arrasto = { x: e.clientX, s: $('faixa').scrollLeft }, arrastou = false })
+addEventListener('pointermove', e => {
+  if (!arrasto) return
+  const dx = e.clientX - arrasto.x
+  if (!arrastou && Math.abs(dx) > 5) arrastou = true, $('faixa').classList.add('arrastando')
+  if (arrastou) $('faixa').scrollLeft = arrasto.s - dx
+})
+addEventListener('pointerup', () => { arrasto = null; $('faixa').classList.remove('arrastando') })
 $('faixa').addEventListener('click', e => {
   const c = e.target.closest('.dest')
+  if (arrastou) { arrastou = false; return e.preventDefault() } // soltou depois de arrastar: não abre o fato
   if (!c) return
   e.preventDefault(); history.replaceState(null, '', '#fato-' + c.dataset.id); irPara(c.dataset.id)
 })
