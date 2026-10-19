@@ -46,23 +46,8 @@ function desenhar() {
       <div class="contagem">${c.verdadeiro} verdadeiro · ${c.impreciso} impreciso · ${c.falso} falso<br>${c.sem_dados} sem dados</div>
     </div>`).join('')
 
-  $('fatos').innerHTML = d.fatos?.length ? d.fatos.map((f, fi) => {
-    const novo = vistos.size && !vistos.has(f.tema + f.declaracoes.length)
-    vistos.add(f.tema + f.declaracoes.length)
-    return `<li class="fato${novo ? ' novo' : ''}"><h3>${esc(f.tema)}</h3>${f.declaracoes.map((x, di) => `
-      <div class="decl ${vered(x.veredito)}">
-        <div class="cab"><span class="tecla ${vered(x.veredito)}">${ROTULO[vered(x.veredito)]}</span><b>${esc(d.candidatos[x.quem].nome)}</b>
-          <span>${new Date(x.t).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' })}</span></div>
-        <p class="disse">${esc(x.afirmacao)}</p>
-        ${x.literal ? `<p class="literal">Frase dita: “${esc(x.literal)}”</p>` : ''}
-        ${x.contexto ? `<p class="ctx">${esc(x.contexto)}</p>` : ''}
-        ${x.motivo ? `<p class="motivo">${esc(x.motivo)}</p>` : ''}
-        ${x.corrigido ? `<p class="corrigido">Revisado após o debate · ao vivo era <b>${ROTULO[vered(x.corrigido.antes)]}</b>${x.corrigido.afirmacao_antes ? ` (o robô tinha entendido: “${esc(x.corrigido.afirmacao_antes)}”)` : ''}</p>` : ''}
-        <div class="fonte">${x.fonte ? `Fonte: <a href="${link(x.fonte.url)}" target="_blank" rel="noopener">${esc(x.fonte.titulo)}</a> (${esc(host(x.fonte.url))})` : 'Nenhuma fonte encontrada.'}</div>
-        <button class="card-botao" type="button" data-f="${fi}" data-d="${di}">Compartilhar este fato</button>
-      </div>`).join('')}</li>`
-  }).join('') : '<li class="vazio">Os fatos aparecem aqui quando um candidato citar um dado que dá para checar.</li>'
-
+  desenharDestaques(d)
+  desenharFatos(d)
   desenharLinha(d)
   desenharRevisao(d)
 
@@ -96,6 +81,125 @@ function desenhar() {
   $('share-zap').href = `https://wa.me/?text=${texto}`
 }
 
+// ---------- Fatos checados: lista plana, filtros, ordem, destaques e link direto ----------
+// Cada declaração vira um card. id estável (hora + quem + texto) para o link #fato-id continuar valendo entre atualizações
+const idDe = x => x.t.toString(36) + x.quem + [...String(x.afirmacao)].reduce((s, c) => (s * 31 + c.charCodeAt(0)) >>> 0, 7).toString(36)
+let itens = [] // todas as declarações, já com id e tema
+const filtro = { quem: 'todos', vered: null, janela: null } // janela: [início, fim] em ms, vinda da linha do tempo
+let ordem = null // 'recentes' | 'debate'; null = automático (ao vivo, recentes primeiro; depois do debate, ordem do debate)
+let vistosIds = null, novosPendentes = 0
+const ordemAtual = () => ordem ?? (dados?.encerrado || dados?.revisao ? 'debate' : 'recentes')
+const horaDe = t => new Date(t).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' })
+
+function filtrar(lista, ignorar) {
+  return lista.filter(x => (ignorar === 'quem' || filtro.quem === 'todos' || x.quem === filtro.quem) &&
+    (ignorar === 'vered' || !filtro.vered || (filtro.vered === 'corrigidos' ? x.corrigido : x.veredito === filtro.vered)) &&
+    (!filtro.janela || (x.t >= filtro.janela[0] && x.t < filtro.janela[1])))
+}
+
+function desenharFatos(d) {
+  itens = (d.fatos ?? []).flatMap(f => f.declaracoes.map(x => ({ ...x, tema: f.tema, id: idDe(x) })))
+  // Ao vivo, fato novo enquanto a pessoa lê lá embaixo: a lista não pula; aparece o aviso "N fatos novos"
+  const ids = new Set(itens.map(x => x.id))
+  const novos = vistosIds ? itens.filter(x => !vistosIds.has(x.id)).length : 0
+  const ancora = [...document.querySelectorAll('#fatos > li[id]')].find(li => li.getBoundingClientRect().top >= 0)
+  const topoAntes = ancora?.getBoundingClientRect().top
+
+  const [A, B] = Object.keys(d.candidatos), base = filtrar(itens, 'vered'), porQuem = filtrar(itens, 'quem')
+  const conta = k => base.filter(x => k === 'corrigidos' ? x.corrigido : x.veredito === k).length
+  const chip = (k, rotulo) => `<button type="button" class="filtro tecla-chip ${k}" data-ver="${k}" aria-pressed="${filtro.vered === k}">${rotulo} <span>${conta(k)}</span></button>`
+  const pessoa = (q, rotulo) => `<button type="button" class="filtro" data-quem="${q}" aria-pressed="${filtro.quem === q}">${esc(rotulo)} <span>${q === 'todos' ? porQuem.length : porQuem.filter(x => x.quem === q).length}</span></button>`
+  $('filtros').innerHTML = `<div class="grupo" role="group" aria-label="Candidato">${pessoa('todos', 'Todos')}${pessoa(A, d.candidatos[A].nome)}${pessoa(B, d.candidatos[B].nome)}</div>
+    <div class="grupo" role="group" aria-label="Veredito">${Object.keys(ROTULO).filter(k => k !== 'em_revisao' || conta(k)).map(k => chip(k, ROTULO[k])).join('')}${itens.some(x => x.corrigido) ? chip('corrigidos', '✎ Corrigidos') : ''}</div>
+    <div class="grupo">${filtro.janela ? `<button type="button" class="filtro ativo-x" data-limpar="janela">${horaDe(filtro.janela[0])}–${horaDe(filtro.janela[1])} ✕</button>` : ''}
+      <button type="button" class="filtro" data-ordem>${ordemAtual() === 'recentes' ? '↓ Mais recentes primeiro' : '↓ Na ordem do debate'}</button></div>`
+
+  const lista = filtrar(itens).sort((x, y) => ordemAtual() === 'recentes' ? y.t - x.t : x.t - y.t)
+  $('fatos-total').textContent = lista.length === itens.length ? `(${itens.length})` : `(${lista.length} de ${itens.length})`
+  $('fatos').innerHTML = lista.length ? lista.map(x => {
+    const v = vered(x.veredito), nome = d.candidatos[x.quem]?.nome ?? ''
+    return `<li class="fato decl ${v}${vistosIds && !vistosIds.has(x.id) ? ' novo' : ''}" id="fato-${x.id}">
+      <div class="cab"><span class="tecla ${v}">${ROTULO[v]}</span><b>${esc(nome)}</b><span>${horaDe(x.t)}</span><span class="tema">${esc(x.tema)}</span></div>
+      <p class="disse">${esc(x.afirmacao)}</p>
+      <details${STORY ? ' open' : ''}><summary>Ver dados e fonte</summary>
+        ${x.literal ? `<p class="literal">Frase dita: “${esc(x.literal)}”</p>` : ''}
+        ${x.contexto ? `<p class="ctx">${esc(x.contexto)}</p>` : ''}
+        ${x.motivo ? `<p class="motivo">${esc(x.motivo)}</p>` : ''}
+        ${x.corrigido ? `<p class="corrigido">Revisado após o debate · ao vivo era <b>${ROTULO[vered(x.corrigido.antes)]}</b>${x.corrigido.afirmacao_antes ? ` (o robô tinha entendido: “${esc(x.corrigido.afirmacao_antes)}”)` : ''}</p>` : ''}
+        <div class="fonte">${x.fonte ? `Fonte: <a href="${link(x.fonte.url)}" target="_blank" rel="noopener">${esc(x.fonte.titulo)}</a> (${esc(host(x.fonte.url))})` : 'Nenhuma fonte encontrada.'}</div>
+        <div class="acoes"><button class="card-botao" type="button" data-id="${x.id}">Compartilhar este fato</button>
+          <button class="card-botao copiar-link" type="button" data-id="${x.id}">Copiar link</button></div>
+      </details>
+    </li>`
+  }).join('') : itens.length ? '<li class="vazio">Nenhum fato com esses filtros. <button class="botao-texto" type="button" data-limpar="tudo">Limpar filtros</button></li>'
+    : '<li class="vazio">Os fatos aparecem aqui quando um candidato citar um dado que dá para checar.</li>'
+
+  // Mantém o card que a pessoa estava lendo no mesmo lugar da tela
+  const mesmo = ancora && document.getElementById(ancora.id)
+  if (mesmo && topoAntes != null) window.scrollBy(0, mesmo.getBoundingClientRect().top - topoAntes)
+  const lendoEmbaixo = $('fatos').getBoundingClientRect().top < 0
+  if (novos && lendoEmbaixo && ordemAtual() === 'recentes' && !d.encerrado) novosPendentes += novos
+  if (!lendoEmbaixo) novosPendentes = 0
+  $('novos').hidden = !novosPendentes
+  $('novos').textContent = `↑ ${novosPendentes} ${novosPendentes === 1 ? 'fato novo' : 'fatos novos'}`
+  vistosIds = ids
+}
+
+// Faixa de destaques: os falsos e imprecisos mais recentes (ou, depois da revisão, os vereditos que mudaram)
+function desenharDestaques(d) {
+  const todos = (d.fatos ?? []).flatMap(f => f.declaracoes.map(x => ({ ...x, id: idDe(x) })))
+  const mudaram = todos.filter(x => x.corrigido && x.corrigido.antes !== x.veredito)
+  const lista = (mudaram.length ? mudaram : todos.filter(x => x.veredito === 'falso' || x.veredito === 'impreciso')).sort((x, y) => y.t - x.t).slice(0, 8)
+  $('destaques').hidden = !lista.length
+  if (!lista.length) return
+  $('destaques-titulo').textContent = mudaram.length ? 'Destaques da revisão: vereditos que mudaram' : 'Destaques: últimos falsos e imprecisos'
+  $('faixa').innerHTML = lista.map(x => { const v = vered(x.veredito); return `<a class="dest ${v}" href="#fato-${x.id}" data-id="${x.id}">
+    <span class="tecla ${v}">${ROTULO[v]}</span>${x.corrigido ? ` <small>era ${ROTULO[vered(x.corrigido.antes)]}</small>` : ''}
+    <b>${esc(d.candidatos[x.quem]?.nome)}</b><span>${esc(x.afirmacao)}</span></a>` }).join('')
+}
+
+// Link direto para um fato (#fato-id): limpa filtros se precisar, abre os detalhes e rola até ele
+function irPara(id) {
+  let el = document.getElementById('fato-' + id)
+  if (!el && itens.some(x => x.id === id)) { Object.assign(filtro, { quem: 'todos', vered: null, janela: null }); desenharFatos(dados); desenharLinha(dados); el = document.getElementById('fato-' + id) }
+  if (!el) return
+  el.querySelector('details').open = true
+  el.scrollIntoView({ block: 'center', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' })
+  el.classList.remove('alvo'); void el.offsetWidth; el.classList.add('alvo')
+}
+const hashId = () => location.hash.match(/^#fato-([\w]+)$/)?.[1]
+addEventListener('hashchange', () => hashId() && irPara(hashId()))
+$('faixa').addEventListener('click', e => {
+  const c = e.target.closest('.dest')
+  if (!c) return
+  e.preventDefault(); history.replaceState(null, '', '#fato-' + c.dataset.id); irPara(c.dataset.id)
+})
+async function copiarLink(b) {
+  const url = `${location.origin}${location.pathname}${location.search}#fato-${b.dataset.id}`
+  try { await navigator.clipboard.writeText(url); b.textContent = 'Link copiado ✓' } catch { prompt('Copie o link do fato:', url) }
+  setTimeout(() => { b.textContent = 'Copiar link' }, 2000)
+}
+
+// Cliques nos filtros, na linha do tempo e no aviso de fatos novos
+function refazer() { desenharFatos(dados); desenharLinha(dados); desenharRevisao(dados) }
+document.addEventListener('click', e => {
+  if (!dados) return
+  const b = e.target.closest('[data-quem], [data-ver], [data-ordem], [data-limpar], .lt-col')
+  if (!b) return
+  if (b.dataset.quem) filtro.quem = b.dataset.quem
+  else if (b.dataset.ver) { filtro.vered = filtro.vered === b.dataset.ver ? null : b.dataset.ver; if (b.closest('#revisao')) $('fatos-secao').scrollIntoView() }
+  else if ('ordem' in b.dataset) ordem = ordemAtual() === 'recentes' ? 'debate' : 'recentes'
+  else if (b.dataset.limpar === 'janela') filtro.janela = null
+  else if (b.dataset.limpar === 'tudo') Object.assign(filtro, { quem: 'todos', vered: null, janela: null })
+  else if (b.classList.contains('lt-col')) {
+    const comeco = dados.video?.comeco ?? dados.video?.t0 ?? 0, i = comeco + +b.dataset.b * 300000
+    filtro.janela = filtro.janela?.[0] === i ? null : [i, i + 300000]
+    if (filtro.janela) $('fatos-secao').scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' })
+  }
+  refazer()
+})
+$('novos').onclick = () => { novosPendentes = 0; $('novos').hidden = true; $('fatos-secao').scrollIntoView() }
+
 // Card da revisão pós-debate: o que mudou em relação ao placar ao vivo, com link para a versão original
 function desenharRevisao(d) {
   const r = d.revisao
@@ -103,15 +207,15 @@ function desenharRevisao(d) {
   if (!r) return
   const [A, B] = Object.keys(d.candidatos), erro = c => { const t = c.verdadeiro + c.impreciso + c.falso; return t ? Math.round((c.falso + c.impreciso / 2) / t * 100) + '%' : '–' }
   const mudou = r.mudancas.filter(m => m.depois && m.depois !== m.antes), saiu = r.mudancas.filter(m => !m.depois)
-  $('revisao').innerHTML = `<h2>Dados revisados e corrigidos pelo ${esc(r.por)} após o debate</h2>
-    <p>${esc(r.resumo)}</p>
-    <p class="rev-numeros">${mudou.length} vereditos corrigidos · ${saiu.length} checagens removidas ·
-      índice de erro ao vivo → revisado: <b>${esc(d.candidatos[A].nome)} ${erro(r.antes[A])} → ${erro(r.depois[A])}</b>,
+  $('revisao').innerHTML = `<p class="rev-linha"><b>✎ Dados revisados e corrigidos pelo ${esc(r.por)} após o debate.</b>
+      ${mudou.length} vereditos corrigidos · ${saiu.length} checagens removidas · erro ao vivo → revisado:
+      <b>${esc(d.candidatos[A].nome)} ${erro(r.antes[A])} → ${erro(r.depois[A])}</b> ·
       <b>${esc(d.candidatos[B].nome)} ${erro(r.antes[B])} → ${erro(r.depois[B])}</b></p>
-    <details><summary>Ver tudo o que mudou</summary><ul>${r.mudancas.map(m => `<li><b>${esc(m.quem)}</b>: ${esc(m.afirmacao)}
+    <details><summary>Ver detalhes da revisão</summary><p>${esc(r.resumo)}</p>
+      ${filtro.vered !== 'corrigidos' ? '<p><button class="botao-texto" type="button" data-ver="corrigidos">Mostrar só os fatos corrigidos</button></p>' : ''}<ul>${r.mudancas.map(m => `<li><b>${esc(m.quem)}</b>: ${esc(m.afirmacao)}
       <span class="rev-de">${ROTULO[vered(m.antes)]} → ${m.depois ? (m.depois === m.antes ? 'mantido, explicação corrigida' : ROTULO[vered(m.depois)]) : 'removida'}</span>
-      <small>${esc(m.motivo)}</small></li>`).join('')}</ul></details>
-    ${r.ao_vivo ? `<p><a href="?d=${encodeURIComponent(r.ao_vivo)}">Ver o placar como ficou ao vivo, sem a revisão</a></p>` : ''}`
+      <small>${esc(m.motivo)}</small></li>`).join('')}</ul>
+    ${r.ao_vivo ? `<p><a href="?d=${encodeURIComponent(r.ao_vivo)}">Ver o placar como ficou ao vivo, sem a revisão</a></p>` : ''}</details>`
 }
 
 // Linha do tempo: colunas de 5 min, do primeiro minuto com algo até o último, mesma escala para os dois
@@ -125,10 +229,11 @@ function desenharLinha(d) {
   const comeco = d.video?.comeco ?? d.video?.t0 ?? Date.now()
   const hora = m => new Date(comeco + m * 60000).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' })
   const linhas = Object.entries(d.candidatos).map(([q, c]) => `<div class="lt-linha"><span class="lt-nome">${esc(c.nome)}</span>
-    <div class="lt-barras" role="img" aria-label="${esc(c.nome)}: ${blocos.map(b => `${hora(b * 5)}, ${soma(b, 'a' + q)} ataques e ${soma(b, 'p' + q)} propostas`).join('; ')}">${blocos.map(b => {
+    <div class="lt-barras" role="group" aria-label="${esc(c.nome)}: ${blocos.map(b => `${hora(b * 5)}, ${soma(b, 'a' + q)} ataques e ${soma(b, 'p' + q)} propostas`).join('; ')}">${blocos.map(b => {
       const a = soma(b, 'a' + q), p = soma(b, 'p' + q)
-      return `<div class="lt-col" title="${hora(b * 5)}–${hora(b * 5 + 5)}: ${a} ataque${a === 1 ? '' : 's'}, ${p} proposta${p === 1 ? '' : 's'}">` +
-        (a ? `<span class="lt-a" style="height:${a / max * 100}%"></span>` : '') + (p ? `<span class="lt-p" style="height:${p / max * 100}%"></span>` : '') + '</div>'
+      const ativo = filtro.janela?.[0] === comeco + b * 300000
+      return `<button type="button" class="lt-col${ativo ? ' ativo' : ''}" data-b="${b}" aria-pressed="${ativo}" title="${hora(b * 5)}–${hora(b * 5 + 5)}: ${a} ataque${a === 1 ? '' : 's'}, ${p} proposta${p === 1 ? '' : 's'}. Toque para ver os fatos desses minutos">` +
+        (a ? `<span class="lt-a" style="height:${a / max * 100}%"></span>` : '') + (p ? `<span class="lt-p" style="height:${p / max * 100}%"></span>` : '') + '</button>'
     }).join('')}</div></div>`).join('')
   const passo = Math.max(1, Math.ceil(blocos.length / 6)) // no máximo ~6 rótulos no eixo
   const eixo = `<div class="lt-eixo"><span></span><div>${blocos.map((b, i) => `<span>${i % passo ? '' : hora(b * 5)}</span>`).join('')}</div></div>`
@@ -168,9 +273,11 @@ async function cardDoFato(x, nome) {
 }
 
 $('fatos').addEventListener('click', async e => {
+  const c = e.target.closest('.copiar-link')
+  if (c) return copiarLink(c)
   const b = e.target.closest('.card-botao')
   if (!b || !dados) return
-  const x = dados.fatos[+b.dataset.f]?.declaracoes[+b.dataset.d]
+  const x = itens.find(i => i.id === b.dataset.id)
   if (!x) return
   const nome = dados.candidatos[x.quem].nome
   b.disabled = true; b.textContent = 'Gerando imagem…'
@@ -240,7 +347,11 @@ async function buscar() {
     const r = await fetch(`${PLACAR}?t=${Math.floor(Date.now() / 3000)}`)
     if (!r.ok) throw new Error(r.status)
     const novo = await r.json()
-    if (novo.candidatos && (!dados || novo.atualizado !== dados.atualizado)) { dados = novo; desenhar() }
+    if (novo.candidatos && (!dados || novo.atualizado !== dados.atualizado)) {
+      const primeira = !dados
+      dados = novo; desenhar()
+      if (primeira && hashId()) irPara(hashId())
+    }
   } catch { if (!dados) $('status-texto').textContent = 'Sem conexão com o placar. Tentando de novo…' }
   relogio()
 }
