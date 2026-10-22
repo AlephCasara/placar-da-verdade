@@ -5,9 +5,11 @@ num site, fato por fato, sempre com a fonte ao lado.
 
 **No ar:** https://placar.zenithonacademy.com.br · **Como ele decide:** [metodologia](https://placar.zenithonacademy.com.br/metodologia.html)
 
-![Como o robô funciona](diagrama/fluxo.png)
+![Placar do debate de 18/10/2026](docs/placar.png)
 
-## Como funciona
+## Como o robô funciona
+
+![Fluxo do robô](diagrama/fluxo.png)
 
 1. O áudio do debate é cortado em pedaços de 10 segundos.
 2. Uma IA transcreve e o reconhecimento de voz (local, grátis) identifica quem está falando.
