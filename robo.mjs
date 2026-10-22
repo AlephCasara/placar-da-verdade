@@ -207,10 +207,11 @@ Ignore retórica e frases de efeito ("não sou candidato de primeira viagem"), o
 - Quem é "eles", "ele", "o governo dele": use as FALAS ANTERIORES para saber de quem o candidato fala. Não generalize ("eles" não é "todos os governos anteriores").
 - Se o candidato fala de si mesmo ("eu tenho um apartamento"), a afirmação é sobre ele, não sobre o adversário.
 - Não repita o que já está em AFIRMAÇÕES JÁ CHECADAS (o trecho pode repetir falas anteriores).
-- tema: 1 a 3 palavras. Se o assunto já estiver em TEMAS EXISTENTES, use exatamente o mesmo nome.
+- tema: 1 a 3 palavras. Use um nome de TEMAS EXISTENTES só se for exatamente o mesmo assunto (dívida pública não é "dívida com FMI"); senão crie um novo.
 - afirmacao: o que o candidato afirmou, em 1 frase na 3ª pessoa, corrigindo erros óbvios de transcrição, sem mudar o sentido.
 - literal: o pedaço EXATO do TRECHO com a afirmação, copiado sem mudar nada (até ~40 palavras).
 - anterior: se for o MESMO fato de um item de CHECADAS EM DEBATES ANTERIORES (mesmo assunto e mesmos números, mesmo com outras palavras), o número dele; senão null. Na dúvida, null.
+  Se a fala tiver uma parte A MAIS que o item anterior não cobre, separe em duas afirmações: a parte igual (com anterior) e a parte nova (anterior null).
 - contexto: 1 frase curta explicando o argumento (ex.: "respondendo a X sobre Y").
 - busca: consulta curta para achar o DADO na web (sem mencionar o debate).
 
@@ -328,7 +329,7 @@ async function julgar(a, quem) {
   const v = json(r.choices[0].message.content)
   // Só aceita link que veio mesmo da busca ou das fontes do Perplexity; nunca uma URL inventada pelo modelo
   const citada = pesquisa?.citas.find(u => u === v.fonte)
-  const fonte = provas.find(x => x.url === v.fonte) ?? (citada && { title: new URL(citada).hostname.replace(/^www\./, ''), url: citada }) ?? (v.veredito !== 'sem_dados' ? provas[0] : null)
+  const fonte = v.veredito === 'sem_dados' ? null : provas.find(x => x.url === v.fonte) ?? (citada && { title: new URL(citada).hostname.replace(/^www\./, ''), url: citada }) ?? (v.veredito !== 'sem_dados' ? provas[0] : null)
   return {
     veredito: v.veredito === 'descartar' ? 'descartar' : VEREDITOS.includes(v.veredito) ? v.veredito : 'sem_dados',
     motivo: String(v.motivo ?? '').slice(0, 400),
@@ -436,6 +437,7 @@ async function analisar(texto, quem, t, duracao, de, ate) {
     await Promise.all(lido.afirmacoes.filter(a => podeChecarFatos() && !repetida(quem, a.afirmacao, checadas, 1e9)).map(async a => {
       const antes = jaChecadas[a.anterior]?.nome === nomeDe(quem) ? jaChecadas[a.anterior] : null
       let j = antes ? { veredito: antes.veredito, motivo: antes.motivo, fonte: antes.fonte, ja_checado: { data: antes.data, afirmacao: antes.afirmacao } } : await julgar(a, quem), literal = a.literal
+      if (antes) a = { ...a, afirmacao: antes.afirmacao }
       if (antes) console.log(`\n[JÁ CHECADO] ${nomeDe(quem)} repetiu fala de ${antes.data}: ${antes.afirmacao} (${antes.veredito})`)
       if (j.veredito === 'descartar') return console.log(`\n[DESCARTADO] ${nomeDe(quem)}: ${a.afirmacao} (promessa ou opinião)`)
       if (j.veredito === 'falso' || j.veredito === 'impreciso') {
