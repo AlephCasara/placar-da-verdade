@@ -303,13 +303,19 @@
     .trilha button span { width: 34px; height: 34px; font-size: 1rem; }
     .trilha::before, .trilha::after { top: 15px; }
   }
-  .apoie-link { font-weight: 800; color: var(--tinta); text-decoration: none; border: 1px solid var(--borda); border-radius: 999px; padding: .4em .9em; background: var(--tela); }
+  .apoie-link { font: inherit; font-weight: 800; cursor: pointer; color: var(--tinta); text-decoration: none; border: 1px solid var(--borda); border-radius: 999px; padding: .4em .9em; background: var(--tela); }
   .apoie-link:hover { border-color: var(--falso); color: var(--falso); }
   .story .apoie-link, .overlay .apoie-link { display: none; }
   .rodape { margin: 32px 0 8px; text-align: center; font-size: .9rem; opacity: .75; }
   .rodape a { display: inline-flex; align-items: center; gap: 6px; }
   .rodape svg { width: 18px; height: 18px; fill: currentColor; }
   .story .rodape, .overlay .rodape { display: none; }
+  .apoio-janela { width: min(400px, 100vw - 32px); text-align: center; }
+  .apoio-janela .p-topo h2 { text-align: left; }
+  .apoio-janela p { margin: 10px 0; }
+  .apoio-janela .pix-qr { margin: 14px auto; }
+  .apoio-janela .p-botao { width: 100%; }
+  .apoio-janela .p-nota { font-size: .85rem; color: var(--apagado); }
   .apoio { text-align: center; }
   .apoio p { text-align: left; }
   .pix-qr { display: block; margin: 8px auto; border-radius: 8px; background: #fff; padding: 6px; border: 1px solid var(--borda); }
@@ -357,7 +363,7 @@
     <h1>Placar da Verdade</h1>
     <div class="sinais">
       <button class="como-botao" id="como-botao" type="button" aria-haspopup="dialog"><span aria-hidden="true">⚙</span> Como checamos</button>
-      <a class="apoie-link" href="#apoie">♥ Apoie</a>
+      <button class="apoie-link" id="apoie-botao" type="button" aria-haspopup="dialog">♥ Apoie</button>
       <span id="audiencia" hidden></span>
       <div class="status" id="status"><span class="ponto"></span><span id="status-texto">Conectando…</span></div>
     </div>
@@ -443,7 +449,7 @@
         <h2>Apoie o projeto</h2>
         <p>O Placar da Verdade é gratuito. Se quiser contribuir com o projeto, faça um Pix de qualquer valor.</p>
         <img class="pix-qr" src="pix.svg" width="180" height="180" alt="QR Code do Pix para ZENITHON LTDA">
-        <button class="p-botao" id="pix-copiar" type="button" data-pix="00020126910014br.gov.bcb.pix01366a11bc94-beb5-437d-a9ac-ee0731de39120229Obrigado por apoiar o Placar!5204000053039865802BR5912ZENITHON LTD6002NA6229052514b7202d6c4d49APOIOPLACAR6304D6AA">Copiar Pix copia e cola</button>
+        <button class="p-botao pix-copiar" type="button" data-pix="00020126910014br.gov.bcb.pix01366a11bc94-beb5-437d-a9ac-ee0731de39120229Obrigado por apoiar o Placar!5204000053039865802BR5912ZENITHON LTD6002NA6229052514b7202d6c4d49APOIOPLACAR6304D6AA">Copiar Pix copia e cola</button>
       </div>
       <div class="caixa">
         <h2>Para streamers</h2>
@@ -476,6 +482,13 @@
       <button class="p-botao zap" id="como-avancar" type="button">Próximo ▶</button>
     </div>
     <p class="p-nota"><a href="metodologia">Ver tudo em detalhe: as regras do juiz, os erros que corrigimos e os dados abertos →</a></p>
+  </dialog>
+  <dialog class="partilha apoio-janela" id="apoio-janela" aria-labelledby="apoio-titulo">
+    <div class="p-topo"><h2 id="apoio-titulo">♥ Apoie o Placar</h2><button class="p-fechar" id="apoio-fechar" type="button" aria-label="Fechar">✕</button></div>
+    <p>O Placar da Verdade é gratuito. Cada debate checado custa IA, servidor e muitas horas de trabalho. <strong>Um Pix de qualquer valor ajuda a manter o projeto no ar.</strong></p>
+    <img class="pix-qr" src="pix.svg" width="220" height="220" alt="QR Code do Pix para ZENITHON LTDA">
+    <button class="p-botao zap pix-copiar" type="button" data-pix="00020126910014br.gov.bcb.pix01366a11bc94-beb5-437d-a9ac-ee0731de39120229Obrigado por apoiar o Placar!5204000053039865802BR5912ZENITHON LTD6002NA6229052514b7202d6c4d49APOIOPLACAR6304D6AA">Copiar Pix copia e cola</button>
+    <p class="p-nota">Aponte a câmera do app do banco para o QR Code ou copie o código e cole na área Pix.</p>
   </dialog>
   <dialog class="partilha" id="partilha" aria-labelledby="p-titulo">
     <div class="p-topo"><h2 id="p-titulo">Compartilhar este fato</h2><button class="p-fechar" id="p-fechar" type="button" aria-label="Fechar">✕</button></div>

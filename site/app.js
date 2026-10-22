@@ -524,8 +524,10 @@ $('como').addEventListener('keydown', e => {
 })
 
 // Apoie o projeto: copia o código Pix (copia e cola) para colar no app do banco
-$('pix-copiar').onclick = async () => {
-  const b = $('pix-copiar')
+$('apoie-botao').onclick = () => $('apoio-janela').showModal()
+$('apoio-fechar').onclick = () => $('apoio-janela').close()
+$('apoio-janela').addEventListener('click', e => { if (e.target === $('apoio-janela')) $('apoio-janela').close() }) // clique fora fecha
+for (const b of document.querySelectorAll('.pix-copiar')) b.onclick = async () => {
   try { await navigator.clipboard.writeText(b.dataset.pix); b.textContent = 'Código copiado ✓ Cole no app do banco'; b.classList.add('ok') }
   catch { prompt('Copie o código Pix:', b.dataset.pix) }
   setTimeout(() => { b.textContent = 'Copiar Pix copia e cola'; b.classList.remove('ok') }, 3000)
