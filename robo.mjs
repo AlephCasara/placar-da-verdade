@@ -1,7 +1,7 @@
 // Robô do placar. Roda no PC do operador durante o debate:
 //   áudio do YouTube em pedaços de 10s → gpt-audio-mini transcreve → voz identifica quem fala →
 //   Jev mede o tom e peneira (só conversa não vai adiante) → Haiku extrai fatos, propostas e ataques →
-//   busca na web só com o que existia ATÉ aquele momento → juiz dá o veredito →
+//   busca na web + Perplexity (lê as páginas) só com o que existia ATÉ aquele momento → juiz dá o veredito →
 //   falso/impreciso: outros modelos ouvem o trecho de novo para confirmar a frase → placar.json no R2.
 //
 // Uso:  node --env-file=.env robo.mjs <url-youtube> --a "Nome A" --b "Nome B" [--inicio 4230] [--local] [--continuar]
@@ -43,6 +43,7 @@ const BUCKET = 'placar-debate'
 const SEGUNDOS = 10
 const EXTRATOR = 'anthropic/claude-haiku-5.5'
 const BUSCADOR = 'google/gemini-2.5-flash-lite' // só carrega a busca; não escreve nada
+const INVESTIGADOR = 'perplexity/sonar' // 22/10: no gabarito de 18/10, o juiz acertou 68% com ele junto, contra 60% só com a busca
 const JUIZ = 'google/gemini-3.8-flash' // 18/10: o 3.1-flash-lite ignorava as regras de arredondamento e de falta de prova
 const OUVIDO = 'openai/gpt-audio-mini' // transcrição ao vivo (o Whisper turbo errava número e nome: "sete e meio" → "10,5%")
 const SEGUNDO_OUVIDO = 'google/gemini-3.5-flash-lite' // conferência: outra empresa, outro tipo de erro
@@ -110,13 +111,17 @@ if (jaChecadas.length) console.log(`${jaChecadas.length} checagens de debates an
 // ---------- OpenRouter ----------
 async function openrouter(caminho, corpo) {
   if (gasto >= LIMITE) throw new Error(`teto de US$${LIMITE} atingido`)
-  const r = await fetch(`https://openrouter.ai/api/${caminho}`, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${KEY}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify(corpo),
-  })
-  if (!r.ok) throw new Error(`${caminho} ${r.status}: ${await r.text()}`)
-  return r.json()
+  for (let tentativa = 1; ; tentativa++) {
+    const r = await fetch(`https://openrouter.ai/api/${caminho}`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${KEY}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(corpo),
+    })
+    // 22/10: o Gemini Flash Lite da busca deu "limite de uso" várias vezes; em geral libera em poucos segundos
+    if ((r.status === 429 || r.status >= 500) && tentativa < 3) { await new Promise(ok => setTimeout(ok, 2000 * tentativa)); continue }
+    if (!r.ok) throw new Error(`${caminho} ${r.status}: ${await r.text()}`)
+    return r.json()
+  }
 }
 // Pega o JSON da resposta. Às vezes o modelo devolve dois objetos seguidos: fica com o primeiro
 const json = texto => {
@@ -288,8 +293,32 @@ const REGRAS = 'Você é um checador de fatos imparcial. Julgue se o CONTEÚDO d
   '(9) promessa, meta futura ou opinião pura não é checável: responda veredito "descartar". ' +
   'Antes de rebaixar por causa de um número, calcule a diferença percentual em relação ao dado oficial e aplique a regra 1.'
 
+// Perplexity como investigador: pesquisa, lê as páginas inteiras (a busca acima só traz ~1.500 caracteres de cada uma)
+// e resume o dado com as fontes. Na reprise, data-limite no dia anterior ao debate (não pode ver as checagens que saíram depois)
+const pesquisas = new Map()
+async function pesquisar(a, quem) {
+  const chave = a.afirmacao.toLowerCase().trim()
+  if (!pesquisas.has(chave)) {
+    const ontem = new Date(agora().getTime() - 86400000), filtro = placar.video.ao_vivo ? {} :
+      { search_before_date_filter: `${ontem.getMonth() + 1}/${ontem.getDate()}/${ontem.getFullYear()}` }
+    const r = somar(await openrouter('v1/chat/completions', { model: INVESTIGADOR, max_tokens: 350, temperature: 0, ...filtro,
+      search_domain_filter: PARTIDARIOS.slice(0, 20).map(d => '-' + d),
+      messages: [{ role: 'user', content: `${situacao()}\nEncontre, de preferência em fonte oficial brasileira (IBGE, Banco Central, TSE, gov.br, Congresso, STF) ou imprensa, o DADO que confirma ou desmente esta afirmação feita por ${nomeDe(quem)}: "${a.afirmacao}". ` +
+        'Responda em até 4 frases com os números, o período e a fonte de cada dado. Não dê veredito. Se não encontrar dado sobre exatamente este fato, diga "não encontrei".' }] }), 'pesquisa')
+    const citas = (r.citations ?? r.choices[0].message.annotations?.map(x => x.url_citation?.url) ?? []).filter(u => /^https?:\/\//i.test(u ?? '') && !PARTIDARIOS.some(d => u.includes(d)))
+    pesquisas.set(chave, { citas, texto: String(r.choices[0].message.content ?? '') })
+  }
+  return pesquisas.get(chave)
+}
+
 async function julgar(a, quem) {
-  const provas = await buscar(a.busca || a.afirmacao) // às vezes o Haiku deixa a busca vazia
+  // Busca e Perplexity em paralelo; se uma falhar (limite de uso), a outra ainda entrega prova ao juiz
+  const [achados, pesquisa] = await Promise.all([
+    buscar(a.busca || a.afirmacao).catch(e => (console.error('\nbusca falhou:', e.message.slice(0, 100)), [])), // às vezes o Haiku deixa a busca vazia
+    pesquisar(a, quem).catch(e => (console.error('\nPerplexity falhou:', e.message.slice(0, 100)), null)),
+  ])
+  const provas = [...(pesquisa?.citas.length ? [{ title: `Pesquisa na web (Perplexity). Fontes: ${pesquisa.citas.slice(0, 6).map((u, i) => `[${i + 1}] ${u}`).join(' ')}`,
+    url: pesquisa.citas[0], content: pesquisa.texto }] : []), ...achados]
   const r = somar(await openrouter('v1/chat/completions', {
     model: JUIZ, max_tokens: 2000, reasoning: { effort: 'low' }, temperature: 0, response_format: { type: 'json_object' },
     messages: [{ role: 'system', content: `${situacao()}\n\n${REGRAS}` }, { role: 'user', content:
@@ -297,12 +326,13 @@ async function julgar(a, quem) {
       (provas.map((p, i) => `[${i + 1}] ${p.title} (${p.url})\n${(p.content ?? '').slice(0, 1500)}`).join('\n\n') || '(nenhuma)') }],
   }), 'juiz')
   const v = json(r.choices[0].message.content)
-  // Só aceita link que veio mesmo da busca; nunca uma URL inventada pelo modelo
-  const fonte = provas.find(x => x.url === v.fonte) ?? (v.veredito !== 'sem_dados' ? provas[0] : null)
+  // Só aceita link que veio mesmo da busca ou das fontes do Perplexity; nunca uma URL inventada pelo modelo
+  const citada = pesquisa?.citas.find(u => u === v.fonte)
+  const fonte = provas.find(x => x.url === v.fonte) ?? (citada && { title: new URL(citada).hostname.replace(/^www\./, ''), url: citada }) ?? (v.veredito !== 'sem_dados' ? provas[0] : null)
   return {
     veredito: v.veredito === 'descartar' ? 'descartar' : VEREDITOS.includes(v.veredito) ? v.veredito : 'sem_dados',
     motivo: String(v.motivo ?? '').slice(0, 400),
-    fonte: fonte ? { titulo: fonte.title || new URL(fonte.url).hostname, url: fonte.url } : null,
+    fonte: fonte ? { titulo: fonte.title && !fonte.title.startsWith('Pesquisa na web') ? fonte.title : new URL(fonte.url).hostname.replace(/^www./, ''), url: fonte.url } : null,
   }
 }
 
