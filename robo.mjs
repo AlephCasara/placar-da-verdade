@@ -49,6 +49,8 @@ const SEGUNDO_OUVIDO = 'google/gemini-3.5-flash-lite' // conferência: outra emp
 const DESEMPATE = 'openai/gpt-audio'
 const MEDIADOR = 'anthropic/claude-sonnet-5.5' // não ouve: decide pelo texto se a diferença entre as versões muda o fato
 const VEREDITOS = ['verdadeiro', 'impreciso', 'falso', 'sem_dados']
+// Debates anteriores já revisados (placar-<data>.json no R2): fala repetida reaproveita o veredito, sem nova busca
+const ANTERIORES = ['2026-10-18']
 const WHISPER_LIXO = /amara\.org|legendas? (pela|por)|inscreva-se|obrigad[oa] por assistir/i
 
 // ---------- Vídeo e relógio ----------
@@ -94,6 +96,16 @@ const situacao = () => `Agora é ${quando()}. Você está acompanhando AO VIVO o
   'Só existe o que foi publicado até este momento: checagens e notícias sobre este debate ainda não saíram.'
 
 const nomeDe = quem => quem === '0' ? 'Mediador' : placar.candidatos[quem].nome
+
+const jaChecadas = [] // [{ nome, data, afirmacao, literal, veredito, motivo, fonte }]
+for (const data of ANTERIORES) {
+  try {
+    const p = await (await fetch(`https://placar-dados.zenithonacademy.com.br/placar-${data}.json`)).json()
+    for (const d of p.fatos.flatMap(f => f.declaracoes)) if (VEREDITOS.includes(d.veredito))
+      jaChecadas.push({ nome: p.candidatos[d.quem].nome, data, afirmacao: d.afirmacao, literal: d.literal, veredito: d.veredito, motivo: d.motivo, fonte: d.fonte })
+  } catch (e) { console.error(`não consegui carregar o debate de ${data}:`, e.message) }
+}
+if (jaChecadas.length) console.log(`${jaChecadas.length} checagens de debates anteriores carregadas (fala repetida reaproveita o veredito)`)
 
 // ---------- OpenRouter ----------
 async function openrouter(caminho, corpo) {
@@ -182,7 +194,7 @@ async function medirTom(texto) {
 //    anota propostas e ataques com texto (o que o Jev não escreve)
 const EXTRAIR = `Você é editor de uma agência de checagem cobrindo o debate. A transcrição automática pode ter erros.
 Leia o TRECHO do candidato e responda só JSON. Extraia SÓ do TRECHO; FALAS ANTERIORES são apenas contexto.
-{"afirmacoes":[{"tema":"","afirmacao":"","literal":"","contexto":"","busca":""}],"propostas":[{"titulo":"","explicacao":""}],"ataques":[{"resumo":""}]}
+{"afirmacoes":[{"tema":"","afirmacao":"","literal":"","contexto":"","busca":"","anterior":null}],"propostas":[{"titulo":"","explicacao":""}],"ataques":[{"resumo":""}]}
 
 afirmacoes (máx. 2): só o que REALMENTE vale uma checagem: números, estatísticas, comparações, atos de governo, leis, eventos.
 Ignore retórica e frases de efeito ("não sou candidato de primeira viagem"), opiniões, promessas e metas ("vai pegar pena mínima de 8 anos",
@@ -193,6 +205,7 @@ Ignore retórica e frases de efeito ("não sou candidato de primeira viagem"), o
 - tema: 1 a 3 palavras. Se o assunto já estiver em TEMAS EXISTENTES, use exatamente o mesmo nome.
 - afirmacao: o que o candidato afirmou, em 1 frase na 3ª pessoa, corrigindo erros óbvios de transcrição, sem mudar o sentido.
 - literal: o pedaço EXATO do TRECHO com a afirmação, copiado sem mudar nada (até ~40 palavras).
+- anterior: se for o MESMO fato de um item de CHECADAS EM DEBATES ANTERIORES (mesmo assunto e mesmos números, mesmo com outras palavras), o número dele; senão null. Na dúvida, null.
 - contexto: 1 frase curta explicando o argumento (ex.: "respondendo a X sobre Y").
 - busca: consulta curta para achar o DADO na web (sem mencionar o debate).
 
@@ -210,6 +223,7 @@ async function ler(texto, quem, anterior) {
     messages: [{ role: 'system', content: `${situacao()}\n\n${EXTRAIR}` }, { role: 'user', content:
       `TEMAS EXISTENTES: ${placar.fatos.map(f => f.tema).slice(0, 20).join(', ') || 'nenhum'}\n` +
       `PROPOSTAS JÁ DITAS por ${nomeDe(quem)}: ${ditas}\n` +
+      `CHECADAS EM DEBATES ANTERIORES de ${nomeDe(quem)}:\n${jaChecadas.map((c, i) => c.nome === nomeDe(quem) ? `[${i}] ${c.afirmacao}` : '').filter(Boolean).join('\n') || 'nenhuma'}\n` +
       `AFIRMAÇÕES JÁ CHECADAS de ${nomeDe(quem)}: ${placar.fatos.flatMap(f => f.declaracoes).filter(d => d.quem === quem).map(d => d.afirmacao).slice(-40).join(' | ') || 'nenhuma'}\n` +
       `FALAS ANTERIORES:\n${anterior}\n\nTRECHO de ${nomeDe(quem)}:\n${texto}` }],
   }), 'haiku')
@@ -390,14 +404,16 @@ async function analisar(texto, quem, t, duracao, de, ate) {
     }
     publicar()
     await Promise.all(lido.afirmacoes.filter(a => podeChecarFatos() && !repetida(quem, a.afirmacao, checadas, 1e9)).map(async a => {
-      let j = await julgar(a, quem), literal = a.literal
+      const antes = jaChecadas[a.anterior]?.nome === nomeDe(quem) ? jaChecadas[a.anterior] : null
+      let j = antes ? { veredito: antes.veredito, motivo: antes.motivo, fonte: antes.fonte, ja_checado: { data: antes.data, afirmacao: antes.afirmacao } } : await julgar(a, quem), literal = a.literal
+      if (antes) console.log(`\n[JÁ CHECADO] ${nomeDe(quem)} repetiu fala de ${antes.data}: ${antes.afirmacao} (${antes.veredito})`)
       if (j.veredito === 'descartar') return console.log(`\n[DESCARTADO] ${nomeDe(quem)}: ${a.afirmacao} (promessa ou opinião)`)
       if (j.veredito === 'falso' || j.veredito === 'impreciso') {
         const c = await conferir(a, quem, de, ate)
         literal = c.literal || literal
         if (c.decisao === 'corrigir' && c.afirmacao) {
           console.log(`\n[CONFERÊNCIA] corrigido: "${a.afirmacao}" → "${c.afirmacao}"`)
-          a = { ...a, afirmacao: c.afirmacao }; j = await julgar(a, quem)
+          a = { ...a, afirmacao: c.afirmacao }; j = await julgar(a, quem) // julga do zero (o veredito anterior não vale para a frase corrigida)
           if (j.veredito === 'descartar') return
         } else if (c.decisao === 'revisar') {
           console.log(`\n[CONFERÊNCIA] em revisão: ${a.afirmacao}`)

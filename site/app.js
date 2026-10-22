@@ -119,9 +119,10 @@ function desenharFatos(d) {
   $('fatos').innerHTML = lista.length ? lista.map(x => {
     const v = vered(x.veredito), nome = d.candidatos[x.quem]?.nome ?? ''
     return `<li class="fato decl ${v}${vistosIds && !vistosIds.has(x.id) ? ' novo' : ''}" id="fato-${x.id}">
-      <div class="cab"><span class="tecla ${v}">${ROTULO[v]}</span><b>${esc(nome)}</b><span>${horaDe(x.t)}</span><span class="tema">${esc(x.tema)}</span></div>
+      <div class="cab"><span class="tecla ${v}">${ROTULO[v]}</span><b>${esc(nome)}</b><span>${horaDe(x.t)}</span><span class="tema">${esc(x.tema)}</span>${x.ja_checado ? `<span class="ja">↺ já checado em ${esc(x.ja_checado.data.split('-').reverse().slice(0, 2).join('/'))}</span>` : ''}</div>
       <p class="disse">${esc(x.afirmacao)}</p>
       <details${STORY ? ' open' : ''}><summary>Ver dados e fonte</summary>
+        ${x.ja_checado ? `<p class="corrigido">Repetiu o que disse em outro debate (“${esc(x.ja_checado.afirmacao)}”): o veredito foi reaproveitado da checagem anterior.</p>` : ''}
         ${x.literal ? `<p class="literal">Frase dita: “${esc(x.literal)}”</p>` : ''}
         ${x.contexto ? `<p class="ctx">${esc(x.contexto)}</p>` : ''}
         ${x.motivo ? `<p class="motivo">${esc(x.motivo)}</p>` : ''}
@@ -184,43 +185,60 @@ $('faixa').addEventListener('click', e => {
   if (!c) return
   e.preventDefault(); history.replaceState(null, '', '#fato-' + c.dataset.id); irPara(c.dataset.id)
 })
-// ---------- Compartilhar um fato: janela com a prévia do card e os atalhos ----------
+// ---------- Compartilhar: janela com a prévia da imagem e os atalhos (serve para um fato ou para o resumo do debate) ----------
 const urlDoFato = id => `${location.origin}${location.pathname}${location.search}#fato-${id}`
-const imagens = new Map() // id → Blob do card já gerado (abrir de novo é instantâneo)
-let fatoAberto = null
-async function abrirPartilha(x) {
-  fatoAberto = x
-  const nome = dados.candidatos[x.quem].nome, v = vered(x.veredito), url = urlDoFato(x.id)
-  const texto = `${nome} disse: "${x.afirmacao}" → ${ROTULO[v]}.${x.motivo ? ` ${x.motivo}` : ''}`
-  $('p-veredito').className = `tecla ${v}`; $('p-veredito').textContent = ROTULO[v]
-  $('p-frase').textContent = `${nome}: “${x.afirmacao}”`
-  $('p-zap').href = `https://wa.me/?text=${encodeURIComponent(`${texto}\n\nVeja a fonte: ${url}`)}`
-  $('p-x').href = `https://x.com/intent/post?text=${encodeURIComponent(`${nome} disse: "${x.afirmacao.slice(0, 150)}" → ${ROTULO[v]}`)}&url=${encodeURIComponent(url)}`
+const imagens = new Map() // chave → Blob da imagem já gerada (abrir de novo é instantâneo)
+let aberto = null // { chave, titulo, selo, frase, url, zap, x, curto, alt, gerar }
+async function abrirJanela(o) {
+  aberto = o
+  $('p-titulo').textContent = o.titulo
+  $('p-veredito').hidden = !o.selo
+  if (o.selo) { $('p-veredito').className = `tecla ${o.selo}`; $('p-veredito').textContent = ROTULO[o.selo] }
+  $('p-frase').textContent = o.frase
+  $('p-nota').textContent = o.nota
+  $('p-zap').href = `https://wa.me/?text=${encodeURIComponent(`${o.zap}\n\n${o.url}`)}`
+  $('p-x').href = `https://x.com/intent/post?text=${encodeURIComponent(o.x)}&url=${encodeURIComponent(o.url)}`
   $('p-copiar').textContent = 'Copiar link'
   $('p-mais').hidden = !navigator.share
-  $('p-previa').innerHTML = '<div class="p-carregando">Gerando o card…</div>'
+  $('p-previa').innerHTML = '<div class="p-carregando">Gerando a imagem…</div>'
   $('partilha').showModal()
-  if (!imagens.has(x.id)) imagens.set(x.id, await cardDoFato(x, nome))
-  if (fatoAberto !== x) return // a pessoa já abriu outro fato
-  const img = new Image(); img.alt = `Card do fato: ${nome}, ${ROTULO[v]}`; img.src = URL.createObjectURL(imagens.get(x.id))
+  if (!imagens.has(o.chave)) imagens.set(o.chave, await o.gerar())
+  if (aberto !== o) return // a pessoa já abriu outra coisa
+  const img = new Image(); img.alt = o.alt; img.src = URL.createObjectURL(imagens.get(o.chave))
   $('p-previa').replaceChildren(img)
 }
-const arquivoDoCard = () => new File([imagens.get(fatoAberto.id)], 'placar-da-verdade.png', { type: 'image/png' })
+function abrirPartilha(x) {
+  const nome = dados.candidatos[x.quem].nome, v = vered(x.veredito)
+  abrirJanela({ chave: x.id, titulo: 'Compartilhar este fato', selo: v, frase: `${nome}: “${x.afirmacao}”`, url: urlDoFato(x.id),
+    zap: `${nome} disse: "${x.afirmacao}" → ${ROTULO[v]}.${x.motivo ? ` ${x.motivo}` : ''}\n\nVeja a fonte:`,
+    x: `${nome} disse: "${x.afirmacao.slice(0, 150)}" → ${ROTULO[v]}`, curto: `${nome}: "${x.afirmacao}" → ${ROTULO[v]}`,
+    nota: 'A imagem é do tamanho de Stories e Status. O link leva direto a este fato, com a fonte.', alt: `Card do fato: ${nome}, ${ROTULO[v]}`, gerar: () => cardDoFato(x, nome) })
+}
+// Resumo do debate em 5 números (imagem de Stories), pronto para postar no fim do debate
+function abrirResumo() {
+  const [A, B] = Object.values(dados.candidatos), e = c => { const t = c.verdadeiro + c.impreciso + c.falso; return t ? Math.round((c.falso + c.impreciso / 2) / t * 100) + '%' : '–' }
+  const linha = `Índice de erro: ${A.nome} ${e(A)} x ${B.nome} ${e(B)}. Propostas: ${A.propostas ?? 0} x ${B.propostas ?? 0}. Ataques: ${A.ataques ?? 0} x ${B.ataques ?? 0}.`
+  abrirJanela({ chave: 'resumo-' + dados.atualizado, titulo: 'Compartilhar o resumo do debate', selo: null, frase: linha,
+    url: `${location.origin}${location.pathname}${location.search}`, zap: `O debate em 5 números (checagem por IA, com fonte em cada fato):\n${linha}\n\nVeja fato por fato:`,
+    x: `O debate em 5 números: ${linha}`, curto: `O debate em 5 números: ${linha}`, nota: 'A imagem é do tamanho de Stories e Status. O link abre o placar com todos os fatos e as fontes.', alt: 'Resumo do debate em 5 números', gerar: () => cardResumo(dados) })
+}
+$('resumo-botao').onclick = () => dados && abrirResumo()
+const arquivoAberto = () => new File([imagens.get(aberto.chave)], 'placar-da-verdade.png', { type: 'image/png' })
 $('p-copiar').onclick = async () => {
-  try { await navigator.clipboard.writeText(urlDoFato(fatoAberto.id)); $('p-copiar').textContent = 'Link copiado ✓'; $('p-copiar').classList.add('ok') }
-  catch { prompt('Copie o link do fato:', urlDoFato(fatoAberto.id)) }
+  try { await navigator.clipboard.writeText(aberto.url); $('p-copiar').textContent = 'Link copiado ✓'; $('p-copiar').classList.add('ok') }
+  catch { prompt('Copie o link:', aberto.url) }
   setTimeout(() => { $('p-copiar').textContent = 'Copiar link'; $('p-copiar').classList.remove('ok') }, 2000)
 }
 $('p-baixar').onclick = async () => {
-  if (!imagens.has(fatoAberto.id)) imagens.set(fatoAberto.id, await cardDoFato(fatoAberto, dados.candidatos[fatoAberto.quem].nome))
-  const l = document.createElement('a'); l.href = URL.createObjectURL(arquivoDoCard()); l.download = 'placar-da-verdade.png'; l.click()
+  if (!imagens.has(aberto.chave)) imagens.set(aberto.chave, await aberto.gerar())
+  const l = document.createElement('a'); l.href = URL.createObjectURL(arquivoAberto()); l.download = 'placar-da-verdade.png'; l.click()
   setTimeout(() => URL.revokeObjectURL(l.href), 5000)
 }
 $('p-mais').onclick = async () => { // menu nativo do celular (Instagram, Telegram...), com a imagem quando o aparelho aceita
-  const x = fatoAberto, dadosShare = { title: 'Placar da Verdade', text: `${dados.candidatos[x.quem].nome}: "${x.afirmacao}" → ${ROTULO[vered(x.veredito)]}`, url: urlDoFato(x.id) }
+  const o = aberto, compartilhar = { title: 'Placar da Verdade', text: o.curto, url: o.url }
   try {
-    if (imagens.has(x.id) && navigator.canShare?.({ files: [arquivoDoCard()] })) await navigator.share({ ...dadosShare, files: [arquivoDoCard()] })
-    else await navigator.share(dadosShare)
+    if (imagens.has(o.chave) && navigator.canShare?.({ files: [arquivoAberto()] })) await navigator.share({ ...compartilhar, files: [arquivoAberto()] })
+    else await navigator.share(compartilhar)
   } catch {} // cancelar o menu não é erro
 }
 $('p-fechar').onclick = () => $('partilha').close()
@@ -284,6 +302,39 @@ function desenharLinha(d) {
   const passo = Math.max(1, Math.ceil(blocos.length / 6)) // no máximo ~6 rótulos no eixo
   const eixo = `<div class="lt-eixo"><span></span><div>${blocos.map((b, i) => `<span>${i % passo ? '' : hora(b * 5)}</span>`).join('')}</div></div>`
   $('linha-tempo').innerHTML = linhas + eixo
+}
+
+// Card vertical (1080x1920) do resumo: o debate em 5 números, um lado para cada candidato
+async function cardResumo(d) {
+  await document.fonts.load('900 10px Archivo').catch(() => {})
+  const W = 1080, H = 1920, M = 90, cv = document.createElement('canvas')
+  cv.width = W; cv.height = H
+  const g = cv.getContext('2d'), [A, B] = Object.values(d.candidatos)
+  const fonte = (peso, px, estreita) => { g.font = `${peso} ${px}px Archivo, system-ui, sans-serif`; g.fontStretch = estreita ? 'extra-condensed' : 'normal' }
+  const erro = c => { const t = c.verdadeiro + c.impreciso + c.falso; return t ? Math.round((c.falso + c.impreciso / 2) / t * 100) + '%' : '–' }
+  g.fillStyle = '#e4e6e3'; g.fillRect(0, 0, W, H)
+  g.fillStyle = '#fbfbf8'; g.beginPath(); g.roundRect(40, 40, W - 80, H - 80, 36); g.fill()
+  g.fillStyle = '#1b1d1c'; fonte(900, 110, true); g.fillText('Placar da Verdade', M, 210)
+  g.fillStyle = '#5e625f'; fonte(400, 38)
+  g.fillText(`Debate presidencial de ${new Date(d.video?.data ?? d.atualizado).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })}${d.revisao ? ' · revisado' : ''}`, M, 275)
+  g.fillStyle = '#1b1d1c'; fonte(900, 96, true); g.fillText('O debate em 5 números', M, 420)
+  // cabeçalho das colunas
+  const cA = W / 2 + 40, cB = W - M
+  fonte(800, 46, true); g.textAlign = 'right'; g.fillText(A.nome, cA + 110, 530); g.fillText(B.nome, cB, 530); g.textAlign = 'left'
+  const linhas = [['Índice de erro', erro(A), erro(B), '#c62828'], ['Falsos', A.falso, B.falso, '#c62828'], ['Verdadeiros', A.verdadeiro, B.verdadeiro, '#1d8a4a'],
+    ['Propostas', A.propostas ?? 0, B.propostas ?? 0, '#2457a6'], ['Ataques', A.ataques ?? 0, B.ataques ?? 0, '#b5367a']]
+  linhas.forEach(([rotulo, va, vb, cor], i) => {
+    const y = 680 + i * 210
+    g.fillStyle = '#b9bdb8'; g.fillRect(M, y - 150, W - 2 * M, 3)
+    g.fillStyle = '#1b1d1c'; fonte(800, 52, true); g.fillText(rotulo, M, y - 40)
+    g.fillStyle = cor; fonte(900, 130, true); g.textAlign = 'right'; g.fillText(String(va), cA + 110, y); g.fillText(String(vb), cB, y); g.textAlign = 'left'
+  })
+  const total = (d.fatos ?? []).reduce((n, f) => n + f.declaracoes.length, 0)
+  g.fillStyle = '#5e625f'; fonte(400, 40); g.textAlign = 'center'
+  g.fillText(`${total} afirmações checadas, cada uma com a fonte`, W / 2, H - 280)
+  g.fillStyle = '#1b1d1c'; fonte(900, 64, true); g.fillText(location.host, W / 2, H - 170)
+  g.fillStyle = '#5e625f'; fonte(400, 34); g.fillText('Checagem automática por IA. Confira a fonte.', W / 2, H - 110)
+  return new Promise(ok => cv.toBlob(ok, 'image/png'))
 }
 
 // Card vertical (1080x1920) de um fato, para Stories e WhatsApp

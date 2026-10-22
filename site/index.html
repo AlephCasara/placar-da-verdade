@@ -115,6 +115,8 @@
   .fato.decl { padding: 12px 14px; border-left-width: 6px; }
   .fato .tema { font-size: .8rem; }
   .fato .tema::before { content: "· "; }
+  .fato .ja { font-size: .75rem; font-weight: 700; color: var(--proposta); border: 1px solid var(--proposta); border-radius: 999px; padding: 0 .6em; }
+  #resumo-botao { justify-self: center; }
   .fato details summary { cursor: pointer; font-size: .85rem; font-weight: 700; color: var(--apagado); margin-top: 4px; }
   .fato details[open] summary { margin-bottom: 6px; }
   .fato .acoes { display: flex; gap: 8px; flex-wrap: wrap; }
@@ -339,6 +341,7 @@
         <div class="veredito-medidor" id="medidor-texto"></div>
       </div>
       <div class="cands" id="cands"></div>
+      <button class="partilhar" id="resumo-botao" type="button">↗ Compartilhar o resumo do debate</button>
     </div>
   </section>
 
@@ -387,6 +390,7 @@
         <p>Cada afirmação é buscada na web (agências de checagem, imprensa e dados oficiais) e julgada com as mesmas regras para os dois candidatos.</p>
         <p>Antes de publicar um "falso" ou "impreciso", o trecho é ouvido de novo por outros modelos para confirmar a frase exata. Se o áudio não confirmar, o fato fica "em revisão" e não conta no placar.</p>
         <p><strong>É uma checagem automática e pode errar.</strong> Confira a fonte antes de compartilhar.</p>
+        <p><a href="metodologia">Como checamos, em detalhe, e os dados abertos →</a></p>
       </div>
       <div class="caixa">
         <h2>Para streamers</h2>
@@ -419,7 +423,7 @@
       <button class="p-botao" id="p-baixar" type="button">Baixar imagem</button>
       <button class="p-botao" id="p-mais" type="button" hidden>Mais opções…</button>
     </div>
-    <p class="p-nota">A imagem é do tamanho de Stories e Status. O link leva direto a este fato, com a fonte.</p>
+    <p class="p-nota" id="p-nota">A imagem é do tamanho de Stories e Status. O link leva direto a este fato, com a fonte.</p>
   </dialog>
   <p class="rodape-story">placar.zenithonacademy.com.br</p>
 </div>

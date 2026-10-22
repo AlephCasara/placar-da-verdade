@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Como checamos — Placar da Verdade</title>
+<meta name="description" content="Como o Placar da Verdade checa o debate ao vivo: as etapas, as regras do juiz, a conferência do áudio, a auditoria pós-debate e os dados abertos.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&display=swap" rel="stylesheet">
+<style>
+  :root { --fundo: #e4e6e3; --tela: #fbfbf8; --tinta: #1b1d1c; --apagado: #5e625f; --borda: #b9bdb8;
+    --verdadeiro: #1d8a4a; --impreciso: #e07b14; --falso: #c62828; --proposta: #2457a6; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--fundo); color: var(--tinta); font: 400 1rem/1.6 "Archivo", system-ui, sans-serif; }
+  a { color: var(--proposta); }
+  a:focus-visible, button:focus-visible { outline: 3px solid var(--tinta); outline-offset: 2px; }
+  .pagina { max-width: 860px; margin: 0 auto; padding: 16px; }
+  .voltar { display: inline-block; margin-bottom: 12px; font-weight: 700; color: var(--tinta); }
+  h1 { margin: 0 0 4px; font-size: clamp(2rem, 6vw, 3rem); font-weight: 900; font-stretch: 62%; line-height: 1; }
+  .sub { margin: 0 0 20px; color: var(--apagado); }
+  section { background: var(--tela); border-radius: 10px; padding: 18px 20px; margin-bottom: 16px; }
+  h2 { margin: 0 0 8px; font-size: 1.6rem; font-weight: 900; font-stretch: 62%; }
+  h3 { margin: 16px 0 4px; font-size: 1.1rem; font-weight: 800; font-stretch: 75%; }
+  p, li { max-width: 72ch; }
+  ol.etapas { padding-left: 0; list-style: none; counter-reset: e; display: grid; gap: 10px; }
+  ol.etapas li { counter-increment: e; display: grid; grid-template-columns: 2.2em 1fr; gap: 10px; }
+  ol.etapas li::before { content: counter(e); display: grid; place-items: center; width: 2em; height: 2em; border-radius: 50%; background: var(--tinta); color: #fff; font-weight: 800; }
+  .modelo { color: var(--apagado); font-size: .9rem; }
+  .regras li { margin-bottom: 6px; }
+  .tecla { display: inline-block; padding: .1em .6em; border-radius: 6px; font-weight: 800; font-stretch: 75%; font-size: .85rem; color: #fff; }
+  .v { background: var(--verdadeiro); } .i { background: var(--impreciso); } .f { background: var(--falso); } .s { background: #fff; color: var(--tinta); border: 1px solid var(--borda); }
+  table { width: 100%; border-collapse: collapse; font-size: .95rem; }
+  th, td { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--borda); vertical-align: top; }
+  .dados { display: grid; gap: 10px; }
+  .dado { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; justify-content: space-between; border: 1px solid var(--borda); border-radius: 8px; padding: 10px 12px; }
+  .dado .botoes { display: flex; gap: 8px; flex-wrap: wrap; }
+  .dado a, .dado button { border: 1px solid var(--borda); background: var(--tela); color: var(--tinta); border-radius: 999px; padding: .35em .9em; font: inherit; font-size: .85rem; font-weight: 800; cursor: pointer; text-decoration: none; }
+  code { background: var(--fundo); border-radius: 4px; padding: 0 .3em; font-size: .9em; }
+  .aviso { border-left: 6px solid var(--impreciso); }
+</style>
+</head>
+<body>
+<div class="pagina">
+  <a class="voltar" href="./">← Voltar ao placar</a>
+  <h1>Como checamos</h1>
+  <p class="sub">Tudo o que o Placar da Verdade faz, as regras que valem para os dois candidatos, onde ele erra e os dados para você conferir.</p>
+
+  <section class="aviso">
+    <h2>Antes de tudo</h2>
+    <p><strong>É uma checagem automática, feita por inteligência artificial, e pode errar.</strong> Por isso cada veredito mostra a frase dita, os dados e a fonte. Confira antes de compartilhar.</p>
+    <p>As mesmas regras valem para os dois candidatos. O sistema não sabe em quem você vota e não escolhe lado: ele compara o que foi dito com o que as fontes registram.</p>
+  </section>
+
+  <section>
+    <h2>O caminho de uma fala até o veredito</h2>
+    <ol class="etapas">
+      <li><div><b>Ouvir.</b> O áudio da transmissão é cortado em pedaços de 10 segundos e transcrito. <span class="modelo">Modelo: gpt-audio-mini (OpenAI), com uma lista de nomes do debate. Reserva: Whisper large-v3 turbo.</span></div></li>
+      <li><div><b>Saber quem fala.</b> A voz de cada candidato foi cadastrada antes. Um modelo compara o timbre de cada trecho com as vozes cadastradas, como uma biometria. Roda no computador do operador, sem enviar a voz para fora. <span class="modelo">Modelo: CAM++ (3D-Speaker).</span></div></li>
+      <li><div><b>Separar o que importa.</b> Um classificador mede o tom (proposta, ataque, defesa, balanço ou só conversa). Trecho que é só conversa nem segue adiante. <span class="modelo">Modelo: Jev (Typesafe).</span></div></li>
+      <li><div><b>Escolher o que vale checar.</b> Uma IA lê o trecho como um editor e anota afirmações checáveis (números, dados, atos de governo, leis), propostas concretas e ataques. Retórica, opinião e promessa não viram checagem. <span class="modelo">Modelo: Claude Haiku 5.5 (Anthropic).</span></div></li>
+      <li><div><b>Buscar as provas.</b> A afirmação é pesquisada na web. Só vale o que foi publicado até aquele momento, e fontes de partidos e de veículos militantes dos dois lados ficam de fora (lista abaixo). <span class="modelo">Busca: Parallel, via Gemini 2.5 Flash Lite.</span></div></li>
+      <li><div><b>Julgar.</b> Um juiz lê só as provas encontradas e dá o veredito com as regras abaixo. Ele só pode citar um link que veio da busca: nunca um endereço inventado. <span class="modelo">Modelo: Gemini 3.8 Flash (Google).</span></div></li>
+      <li><div><b>Conferir o áudio.</b> Antes de publicar um <span class="tecla f">Falso</span> ou <span class="tecla i">Impreciso</span>, o trecho é ouvido de novo por dois modelos de empresas diferentes. Se discordarem, um terceiro desempata. Sem maioria, outra IA lê as versões e decide se publica, corrige a frase ou deixa o fato "em revisão", fora do placar. <span class="modelo">Modelos: gpt-audio-mini, Gemini 3.5 Flash Lite, gpt-audio e Claude Sonnet 5.5.</span></div></li>
+      <li><div><b>Fala repetida.</b> Se o candidato repete algo já checado num debate anterior, o veredito revisado é reaproveitado e o card avisa ("já checado em").</div></li>
+      <li><div><b>Revisar depois.</b> Terminado o debate, o áudio completo é transcrito de novo e cada checagem é comparada com o que foi dito e conferida em fontes oficiais. As correções ficam visíveis no site, com o veredito anterior. <span class="modelo">Revisão: Claude Opus 5.5.</span></div></li>
+    </ol>
+  </section>
+
+  <section>
+    <h2>Os vereditos</h2>
+    <p><span class="tecla v">Verdadeiro</span> os dados confirmam. <span class="tecla i">Impreciso</span> exagerado, parcialmente certo ou fora de contexto. <span class="tecla f">Falso</span> os dados contradizem. <span class="tecla s">Sem dados</span> as provas não trazem dado sobre o fato: não achar a prova não torna a fala falsa.</p>
+    <p><b>Mentirômetro:</b> o índice de erro de cada candidato é (falsos + metade dos imprecisos) ÷ falas checáveis. "Sem dados" fica de fora. O ponteiro só se mexe com pelo menos 3 falas checáveis de cada lado, e diferença menor que 10 pontos aparece como empate técnico.</p>
+    <h3>As regras do juiz</h3>
+    <ol class="regras">
+      <li>Número arredondado ou aproximado, com diferença de até ~5% do dado oficial, é verdadeiro (dizer 11 trilhões quando é 10,8).</li>
+      <li>Opinião, juízo de valor ou comparação vaga que não dá para medir é "sem dados".</li>
+      <li>Se as provas não falam exatamente do fato afirmado (outro período, outro dado), é "sem dados".</li>
+      <li>Número na mesma direção mas fora da margem é impreciso. Falso é quando o fato não aconteceu, aconteceu ao contrário ou o número é muito diferente.</li>
+      <li>Afirmação com várias partes é julgada pelo ponto principal.</li>
+      <li>Erro de fala evidente, com os demais dados certos (dizer 2003 quando os números são de 2023), é impreciso, nunca falso.</li>
+      <li>Se a afirmação repete o que um áudio, documento ou pessoa disse, vale se o conteúdo está comprovado: acusação sem prova é impreciso.</li>
+      <li>"Dívida pública" sem especificar é a dívida bruta do governo geral (Banco Central).</li>
+      <li>Promessa, meta futura ou opinião pura é descartada: não entra no placar.</li>
+    </ol>
+    <h3>Fontes excluídas (dos dois lados)</h3>
+    <p><code>pt.org.br</code> <code>institutolula.org</code> <code>fpabramo.org.br</code> <code>vermelho.org.br</code> <code>brasil247.com</code> <code>revistaforum.com.br</code> <code>diariodocentrodomundo.com.br</code> <code>brasildefato.com.br</code> · <code>pl.org.br</code> <code>fundacaoalvarovalle.org.br</code> <code>flaviobolsonaro.com.br</code> <code>revistaoeste.com</code> <code>brasilparalelo.com.br</code> <code>jornaldacidadeonline.com.br</code> <code>tercalivre.com.br</code></p>
+  </section>
+
+  <section>
+    <h2>Onde o sistema erra (e o que fizemos)</h2>
+    <p>No debate da Band (18/10), a revisão encontrou erros em 31 dos vereditos publicados ao vivo e removeu 14 checagens. A maior parte veio da transcrição: "sete e meio por cento" virou "10,5%", "134 milhões" virou "134 mil", "Eletrobras" virou "Petrobras", "posse no Irã" virou "posse na Venezuela".</p>
+    <table>
+      <thead><tr><th>Problema</th><th>O que mudou</th></tr></thead>
+      <tbody>
+        <tr><td>Transcrição trocando números e nomes</td><td>Modelo de transcrição novo e conferência do áudio antes de publicar falso ou impreciso</td></tr>
+        <tr><td>Juiz rígido demais ou brando demais</td><td>Regras 6 a 9 acima</td></tr>
+        <tr><td>Mesma fala contada duas ou três vezes</td><td>Trava de repetição vale para o debate inteiro</td></tr>
+        <tr><td>Promessa e opinião tratadas como fato</td><td>Descartadas na leitura e no julgamento</td></tr>
+        <tr><td>Parte das checagens não aparecia no site</td><td>Todas aparecem</td></tr>
+      </tbody>
+    </table>
+    <p>Veja o <a href="./?d=2026-10-18">placar revisado de 18/10</a> e compare com o <a href="./?d=2026-10-18-ao-vivo">placar como ficou ao vivo</a>.</p>
+  </section>
+
+  <section>
+    <h2>Dados abertos</h2>
+    <p>Todas as checagens, com frase, veredito, motivo e fonte. Use à vontade: em reportagem, pesquisa ou para conferir o nosso trabalho. Citar a fonte (Placar da Verdade) ajuda o projeto.</p>
+    <div class="dados">
+      <div class="dado"><div><b>Debate de 18/10 (Band), revisado</b></div><div class="botoes"><a href="https://placar-dados.zenithonacademy.com.br/placar-2026-10-18.json" download>JSON</a><button type="button" data-csv="placar-2026-10-18">Planilha (CSV)</button></div></div>
+      <div class="dado"><div><b>Debate de 18/10 (Band), como ficou ao vivo</b></div><div class="botoes"><a href="https://placar-dados.zenithonacademy.com.br/placar-2026-10-18-ao-vivo.json" download>JSON</a><button type="button" data-csv="placar-2026-10-18-ao-vivo">Planilha (CSV)</button></div></div>
+      <div class="dado"><div><b>Placar atual</b> <span class="modelo">(durante um debate, atualiza a cada poucos segundos)</span></div><div class="botoes"><a href="https://placar-dados.zenithonacademy.com.br/placar.json" download>JSON</a><button type="button" data-csv="placar">Planilha (CSV)</button></div></div>
+    </div>
+    <p class="modelo">O placar ao vivo do debate de 18/10 tem só as checagens que estavam visíveis no site no fim da transmissão.</p>
+  </section>
+
+  <section>
+    <h2>Quanto custa</h2>
+    <p>A IA de um debate inteiro custa por volta de US$ 1 (em 18/10 foram US$ 0,53). A transcrição é uma das partes mais baratas e foi a que mais causou erro: por isso é onde mais investimos para o próximo debate.</p>
+  </section>
+</div>
+<script src="metodologia.js"></script>
+</body>
+</html>
