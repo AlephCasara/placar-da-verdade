@@ -17,6 +17,7 @@ import { readFileSync, writeFileSync, appendFileSync, mkdirSync, rmSync, existsS
 import { createInterface } from 'node:readline'
 import { parseArgs } from 'node:util'
 import { lerWav, carregarVozes, quemFala, rotular, reforcar } from './voz.mjs'
+import { validarVeredito } from './fonte.mjs'
 
 const { values: arg, positionals } = parseArgs({ allowPositionals: true, options: {
   a: { type: 'string', default: 'Candidato A' },
@@ -336,14 +337,9 @@ async function julgar(a, quem) {
       (provas.map((p, i) => `[${i + 1}] ${p.title} (${p.url})\n${(p.content ?? '').slice(0, 1500)}`).join('\n\n') || '(nenhuma)') }],
   }), 'juiz')
   const v = json(r.choices[0].message.content)
-  // Só aceita link que veio mesmo da busca ou das fontes do Perplexity; nunca uma URL inventada pelo modelo
-  const citada = pesquisa?.citas.find(u => u === v.fonte)
-  const fonte = v.veredito === 'sem_dados' ? null : provas.find(x => x.url === v.fonte) ?? (citada && { title: new URL(citada).hostname.replace(/^www\./, ''), url: citada }) ?? (v.veredito !== 'sem_dados' ? provas[0] : null)
-  return {
-    veredito: v.veredito === 'descartar' ? 'descartar' : VEREDITOS.includes(v.veredito) ? v.veredito : 'sem_dados',
-    motivo: String(v.motivo ?? '').slice(0, 400),
-    fonte: fonte ? { titulo: fonte.title && !fonte.title.startsWith('Pesquisa na web') ? fonte.title : new URL(fonte.url).hostname.replace(/^www./, ''), url: fonte.url } : null,
-  }
+  const veredito = v.veredito === 'descartar' ? 'descartar' : VEREDITOS.includes(v.veredito) ? v.veredito : 'sem_dados'
+  // Sem citação rastreável, o veredito não pode entrar no placar: fica em revisão.
+  return validarVeredito(veredito, v.motivo, v.fonte, provas, pesquisa?.citas ?? [])
 }
 
 // 5. Conferência: antes de publicar falso ou impreciso, o trecho é ouvido de novo para confirmar a frase.

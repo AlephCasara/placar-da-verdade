@@ -90,8 +90,13 @@ O site é estático, hospedado na Cloudflare (Workers + R2). Para publicar o seu
 ## Testes
 
 ```bash
-node teste.mjs
+npm test
 ```
+
+A validação das citações impede que o juiz atribua uma fonte diferente daquela recuperada.
+Quando o juiz não cita uma URL das evidências disponíveis, o fato fica **em revisão**, fora do
+placar, até haver uma fonte rastreável. O teste automatizado cobre fontes da busca e da pesquisa,
+URLs inventadas, ausência de fonte e exceções sem checagem (opiniões e `sem_dados`).
 
 ## Licença
 

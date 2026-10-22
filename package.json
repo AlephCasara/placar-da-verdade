@@ -7,7 +7,8 @@
     "modelo": "curl -L --create-dirs -o modelos/voz.onnx https://github.com/k2-fsa/sherpa-onnx/releases/download/speaker-recongition-models/3dspeaker_speech_campplus_sv_zh_en_16k-common_advanced.onnx",
     "voz": "node voz.mjs cadastrar",
     "site": "wrangler dev",
-    "deploy": "wrangler deploy"
+    "deploy": "wrangler deploy",
+    "test": "node --test testes/*.test.mjs && node teste.mjs"
   },
   "keywords": [],
   "author": "",
