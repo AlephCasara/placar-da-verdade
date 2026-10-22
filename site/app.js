@@ -355,11 +355,14 @@ function segundosDeDebate() {
 // Ocultar / mostrar o vídeo. Oculto, o player sai da página (não gasta internet) e fica a faixa de ao vivo
 const STORY = new URLSearchParams(location.search).get('modo') === 'story' // modo gravação vertical
 if (STORY) document.body.classList.add('story')
-let videoVisivel = !STORY
-try { if (!STORY) videoVisivel = localStorage.getItem('video') !== 'oculto' } catch {}
+// ?modo=overlay: fundo transparente para streamer colocar por cima da live (OBS, navegador como fonte): Mentirômetro + último fato
+const OVERLAY = new URLSearchParams(location.search).get('modo') === 'overlay'
+if (OVERLAY) document.body.classList.add('overlay'), ordem = 'recentes'
+let videoVisivel = !STORY && !OVERLAY
+try { if (!STORY && !OVERLAY) videoVisivel = localStorage.getItem('video') !== 'oculto' } catch {}
 function mostrarVideo(visivel) {
   videoVisivel = visivel
-  try { if (!STORY) localStorage.setItem('video', visivel ? 'visivel' : 'oculto') } catch {}
+  try { if (!STORY && !OVERLAY) localStorage.setItem('video', visivel ? 'visivel' : 'oculto') } catch {}
   $('com-video').hidden = !visivel
   $('sem-video').hidden = visivel
   $('topo').classList.toggle('sem-video', !visivel)
@@ -420,7 +423,7 @@ setInterval(() => { if (dados?.encerrado) for (const el of document.querySelecto
 
 // Quantas pessoas estão com o site aberto agora e quantas visitas já teve
 function audiencia(espera = 2000, primeira = true) {
-  if (LOCAL) return
+  if (LOCAL || OVERLAY) return // overlay fica aberto horas no OBS do streamer: não conta como pessoa assistindo
   // ?nova só na primeira conexão da página: reconexão não conta como visita
   const ws = new WebSocket(`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/ao-vivo${primeira ? '?nova' : ''}`)
   ws.onmessage = e => {
