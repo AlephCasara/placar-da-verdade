@@ -523,6 +523,14 @@ $('como').addEventListener('keydown', e => {
   if (e.key === 'ArrowLeft') { pararAnimacao(); mostrarPasso(passo - 1) }
 })
 
+// Apoie o projeto: copia o código Pix (copia e cola) para colar no app do banco
+$('pix-copiar').onclick = async () => {
+  const b = $('pix-copiar')
+  try { await navigator.clipboard.writeText(b.dataset.pix); b.textContent = 'Código copiado ✓ Cole no app do banco'; b.classList.add('ok') }
+  catch { prompt('Copie o código Pix:', b.dataset.pix) }
+  setTimeout(() => { b.textContent = 'Copiar Pix copia e cola'; b.classList.remove('ok') }, 3000)
+}
+
 // Quantas pessoas estão com o site aberto agora e quantas visitas já teve
 function audiencia(espera = 2000, primeira = true) {
   if (LOCAL || OVERLAY) return // overlay fica aberto horas no OBS do streamer: não conta como pessoa assistindo

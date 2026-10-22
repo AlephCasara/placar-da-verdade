@@ -303,6 +303,15 @@
     .trilha button span { width: 34px; height: 34px; font-size: 1rem; }
     .trilha::before, .trilha::after { top: 15px; }
   }
+  .apoie-link { font-weight: 800; color: var(--tinta); text-decoration: none; border: 1px solid var(--borda); border-radius: 999px; padding: .4em .9em; background: var(--tela); }
+  .apoie-link:hover { border-color: var(--falso); color: var(--falso); }
+  .story .apoie-link, .overlay .apoie-link { display: none; }
+  .apoio { text-align: center; }
+  .apoio p { text-align: left; }
+  .pix-qr { display: block; margin: 8px auto; border-radius: 8px; background: #fff; padding: 6px; border: 1px solid var(--borda); }
+  .pix-dados { text-align: center !important; font-size: .85rem; color: var(--apagado); }
+  .apoio .p-botao { width: 100%; }
+  .p-botao.ok { background: var(--verdadeiro); color: #fff; border-color: var(--verdadeiro); }
   .endereco-overlay code { display: inline-block; background: var(--fundo); border-radius: 6px; padding: .3em .6em; font-size: .85rem; word-break: break-all; }
   /* Modo overlay (?modo=overlay): só o Mentirômetro e o último fato, fundo transparente para o OBS */
   .overlay, .overlay body { background: transparent; }
@@ -345,6 +354,7 @@
     <h1>Placar da Verdade</h1>
     <div class="sinais">
       <button class="como-botao" id="como-botao" type="button" aria-haspopup="dialog"><span aria-hidden="true">⚙</span> Como checamos</button>
+      <a class="apoie-link" href="#apoie">♥ Apoie</a>
       <span id="audiencia" hidden></span>
       <div class="status" id="status"><span class="ponto"></span><span id="status-texto">Conectando…</span></div>
     </div>
@@ -425,6 +435,13 @@
         <p>Antes de publicar um "falso" ou "impreciso", o trecho é ouvido de novo por outros modelos para confirmar a frase exata. Se o áudio não confirmar, o fato fica "em revisão" e não conta no placar.</p>
         <p><strong>É uma checagem automática e pode errar.</strong> Confira a fonte antes de compartilhar.</p>
         <p><a href="metodologia">Como checamos, em detalhe, e os dados abertos →</a></p>
+      </div>
+      <div class="caixa apoio" id="apoie">
+        <h2>Apoie o projeto</h2>
+        <p>O Placar da Verdade é gratuito. Se quiser contribuir com o projeto, faça um Pix de qualquer valor.</p>
+        <img class="pix-qr" src="pix.svg" width="180" height="180" alt="QR Code do Pix para ZENITHON LTDA">
+        <p class="pix-dados">CNPJ 62.133.625/0001-89 · ZENITHON LTDA</p>
+        <button class="p-botao" id="pix-copiar" type="button" data-pix="00020126360014br.gov.bcb.pix0114621336250001895204000053039865802BR5913ZENITHON LTDA6006BRASIL62070503***63048615">Copiar Pix copia e cola</button>
       </div>
       <div class="caixa">
         <h2>Para streamers</h2>
