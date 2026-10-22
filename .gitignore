@@ -9,3 +9,4 @@ site/placar.json
 !.env.example
 modelos/
 vozes/
+animacoes/
