@@ -16,19 +16,20 @@ const areas = [
 
 const caixas = {
   claude:   { x: 90,   y: 200,  w: 490, h: 120, cor: 'amarelo', texto: 'Claude Code\n(escreve o código e cuida do deploy)' },
-  github:   { x: 90,   y: 430,  w: 490, h: 100, cor: 'cinza',   texto: 'GitHub\n(código, repositório privado)' },
-  vozes:    { x: 90,   y: 660,  w: 490, h: 130, cor: 'roxo',    texto: 'Cadastro de voz\nvídeos do Lula e do Flávio →\n"impressão digital" da voz' },
+  github:   { x: 90,   y: 430,  w: 490, h: 100, cor: 'cinza',   texto: 'GitHub\n(código aberto)' },
+  vozes:    { x: 90,   y: 660,  w: 490, h: 130, cor: 'roxo',    texto: 'Cadastro de voz\nvídeos dos candidatos →\n"impressão digital" da voz' },
   plantao:  { x: 90,   y: 950,  w: 490, h: 140, cor: 'amarelo', texto: 'Claude de plantão\nvigia erros, placar parado e gasto\ne corrige na hora' },
+  revisao:  { x: 90,   y: 1150, w: 490, h: 110, cor: 'amarelo', texto: 'Revisão pós-debate (Claude)\nouve tudo de novo e refaz os vereditos\n→ placar revisado, com o antes', tracejado: true },
 
-  live:     { x: 760,  y: 170,  w: 360, h: 90,  cor: 'vermelho', texto: 'Live da Band\n(YouTube)' },
+  live:     { x: 760,  y: 170,  w: 360, h: 90,  cor: 'vermelho', texto: 'Debate ao vivo\n(YouTube ou áudio do PC)' },
   audio:    { x: 760,  y: 320,  w: 360, h: 90,  cor: 'cinza',   texto: 'yt-dlp + ffmpeg\npedaços de 10 segundos' },
-  whisper:  { x: 760,  y: 470,  w: 360, h: 90,  cor: 'azul',    texto: 'Whisper Turbo\ntranscreve (~1,5s)' },
+  whisper:  { x: 760,  y: 470,  w: 360, h: 90,  cor: 'azul',    texto: 'gpt-audio-mini\ntranscreve' },
   quem:     { x: 1190, y: 470,  w: 360, h: 90,  cor: 'roxo',    texto: 'Reconhece a voz\nquem está falando?' },
   jev:      { x: 760,  y: 640,  w: 360, h: 110, cor: 'azul',    texto: 'Jev\nmede o tom (tempo de fala) e\npeneira: só conversa para aqui' },
-  haiku:    { x: 1190, y: 640,  w: 360, h: 110, cor: 'azul',    texto: 'Haiku 5.5\nfatos, propostas e ataques\n(corrige a transcrição)' },
-  busca:    { x: 1190, y: 830,  w: 360, h: 110, cor: 'verde',   texto: 'Busca na web\nagências de checagem, imprensa\ne dados oficiais (sem partidos)' },
-  juiz:     { x: 1190, y: 1010, w: 360, h: 100, cor: 'azul',    texto: 'Juiz (Gemini)\nveredito + fonte' },
-  placar:   { x: 760,  y: 1010, w: 360, h: 100, cor: 'laranja', texto: 'placar.json\n(tudo junto)' },
+  haiku:    { x: 1190, y: 640,  w: 360, h: 110, cor: 'azul',    texto: 'Haiku 5.5\nfatos, propostas e ataques\n(fala repetida reaproveita veredito)' },
+  busca:    { x: 1190, y: 830,  w: 360, h: 110, cor: 'verde',   texto: 'Busca na web + Perplexity\nlê as páginas, só o publicado até\naquele momento (sem partidos)' },
+  juiz:     { x: 1190, y: 1010, w: 360, h: 130, cor: 'azul',    texto: 'Juiz (Gemini 3.8 Flash)\nveredito + fonte\nfalso/impreciso: outros modelos\nouvem o áudio de novo' },
+  placar:   { x: 760,  y: 1010, w: 360, h: 130, cor: 'laranja', texto: 'placar.json\n(tudo junto)' },
   teto:     { x: 760,  y: 830,  w: 360, h: 110, cor: 'vermelho', texto: 'Teto de gasto: US$2\nUS$1,60 → para de checar fatos\nUS$2 → desliga a IA', tracejado: true },
 
   r2:       { x: 1700, y: 1010, w: 600, h: 110, cor: 'laranja', texto: 'R2 + cache de 3s\nplacar-dados.zenithonacademy.com.br' },
@@ -40,7 +41,7 @@ const caixas = {
 // [de, para, rótulo, lado de saída, lado de chegada]
 const setas = [
   ['claude', 'github', 'gh CLI', 'b', 't'],
-  ['claude', 'site', 'wrangler CLI (deploy)', 'r', 'l', false, [[650, 260], [650, 1250], [1650, 1250], [1650, 815]]],
+  ['claude', 'site', 'wrangler CLI (deploy)', 'r', 'l', false, [[650, 260], [650, 1300], [1650, 1300], [1650, 815]]],
   ['vozes', 'quem', '', 'r', 'l', true, [[665, 725], [665, 795], [1155, 795], [1155, 515]]],
   ['live', 'audio', '', 'b', 't'],
   ['audio', 'whisper', '', 'b', 't'],
@@ -57,7 +58,8 @@ const setas = [
   ['r2', 'site', 'lê a cada 6s', 't', 'b'],
   ['site', 'contador', '', 't', 'b'],
   ['contador', 'publico', '', 't', 'b'],
-  ['plantao', 'placar', 'lê o log do robô', 'r', 'l', true, [[705, 1020], [705, 1060]]],
+  ['plantao', 'placar', 'lê o log do robô', 'r', 'l', true, [[705, 1020], [705, 1075]]],
+  ['revisao', 'r2', 'depois do debate', 'r', 'r', true, [[705, 1205], [705, 1265], [2340, 1265], [2340, 1065]]],
 ]
 
 const ponto = (c, lado) => ({ t: [c.x + c.w / 2, c.y], b: [c.x + c.w / 2, c.y + c.h], l: [c.x, c.y + c.h / 2], r: [c.x + c.w, c.y + c.h / 2] })[lado]
