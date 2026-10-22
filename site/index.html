@@ -261,7 +261,7 @@
   .p-botao.ok { background: var(--verdadeiro); color: #fff; border-color: var(--verdadeiro); }
   .p-nota { margin: 10px 0 0; font-size: .8rem; color: var(--apagado); }
   @media (max-width: 600px) {
-    .partilha { margin: auto 0 0; width: 100vw; max-width: 100vw; border-radius: 16px 16px 0 0; padding-bottom: max(18px, env(safe-area-inset-bottom)); }
+    .partilha { margin: auto 0 0; width: 100%; max-width: 100%; border-radius: 16px 16px 0 0; padding-bottom: max(18px, env(safe-area-inset-bottom)); }
     .partilha[open] { animation: folha .28s ease-out; }
     @keyframes folha { from { transform: translateY(100%); } }
   }
@@ -270,6 +270,39 @@
 
   /* Modo gravação (?modo=story): tela vertical para gravar e postar em Reels / TikTok / Stories */
   .rodape-story { display: none; }
+  /* Botão "Como checamos" no topo e janela com o passo a passo */
+  .como-botao { border: 0; border-radius: 999px; padding: .45em 1em; font: inherit; font-size: .9rem; font-weight: 800; background: var(--tinta); color: #fff; cursor: pointer;
+    box-shadow: 0 0 0 0 rgb(36 87 166 / .5); animation: chama 2s ease-out 3; transition: transform .15s, background .15s; }
+  .como-botao:hover { background: var(--proposta); transform: translateY(-1px); }
+  .como-botao:active { transform: scale(.96); }
+  .como-botao:focus-visible { outline: 3px solid var(--proposta); outline-offset: 2px; }
+  @keyframes chama { 70% { box-shadow: 0 0 0 10px rgb(36 87 166 / 0); } 100% { box-shadow: 0 0 0 0 rgb(36 87 166 / 0); } }
+  .como { border: 0; border-radius: 16px; padding: 18px; width: min(720px, 100vw - 32px); max-height: calc(100vh - 32px); background: var(--tela); color: var(--tinta); box-shadow: 0 20px 60px rgb(0 0 0 / .35); }
+  .como::backdrop { background: rgb(27 29 28 / .55); }
+  .como[open] { animation: sobe .25s ease-out; }
+  .como-sub { margin: 4px 0 14px; color: var(--apagado); font-size: .9rem; }
+  .trilha { list-style: none; margin: 0 0 14px; padding: 0; display: grid; grid-template-columns: repeat(8, 1fr); position: relative; }
+  .trilha::before { content: ""; position: absolute; left: 6%; right: 6%; top: 19px; height: 4px; background: var(--fundo); border-radius: 2px; }
+  .trilha::after { content: ""; position: absolute; left: 6%; top: 19px; height: 4px; width: calc(var(--feito, 0) * 88%); background: var(--proposta); border-radius: 2px; transition: width .5s ease; }
+  .trilha button { position: relative; z-index: 1; display: grid; justify-items: center; gap: 4px; width: 100%; border: 0; background: none; font: inherit; font-size: .72rem; font-weight: 700; color: var(--apagado); cursor: pointer; padding: 0; }
+  .trilha button span { display: grid; place-items: center; width: 42px; height: 42px; border-radius: 50%; background: var(--fundo); font-size: 1.15rem; transition: transform .25s, background .25s; }
+  .trilha button.feito span { background: #d6e0f1; }
+  .trilha button[aria-current="step"] { color: var(--tinta); }
+  .trilha button[aria-current="step"] span { background: var(--proposta); color: #fff; transform: scale(1.18); box-shadow: 0 4px 14px rgb(36 87 166 / .4); }
+  .trilha button:focus-visible span { outline: 3px solid var(--tinta); outline-offset: 2px; }
+  .etapa { background: var(--fundo); border-radius: 12px; padding: 14px 16px; min-height: 11.5rem; }
+  .etapa h3 { margin: 0 0 4px; font-size: 1.35rem; font-weight: 900; font-stretch: 62%; }
+  .etapa p { margin: 0 0 8px; max-width: 64ch; }
+  .etapa .exemplo { background: var(--tela); border-left: 5px solid var(--proposta); border-radius: 8px; padding: 10px 12px; font-size: .95rem; animation: entra .35s ease-out; }
+  .etapa .exemplo b { display: block; font-size: .75rem; text-transform: uppercase; letter-spacing: .04em; color: var(--apagado); margin-bottom: 2px; }
+  .etapa .modelo { font-size: .8rem; color: var(--apagado); }
+  .como-controles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 12px; }
+  @media (max-width: 600px) {
+    .como { margin: auto 0 0; width: 100%; max-width: 100%; border-radius: 16px 16px 0 0; padding-bottom: max(18px, env(safe-area-inset-bottom)); }
+    .trilha button { font-size: 0; gap: 0; }
+    .trilha button span { width: 34px; height: 34px; font-size: 1rem; }
+    .trilha::before, .trilha::after { top: 15px; }
+  }
   .endereco-overlay code { display: inline-block; background: var(--fundo); border-radius: 6px; padding: .3em .6em; font-size: .85rem; word-break: break-all; }
   /* Modo overlay (?modo=overlay): só o Mentirômetro e o último fato, fundo transparente para o OBS */
   .overlay, .overlay body { background: transparent; }
@@ -293,7 +326,7 @@
   .story .pagina { max-width: 520px; }
   .story .topo, .story .meio { grid-template-columns: minmax(0, 1fr); }
   .story #com-video, .story #ver-live, .story aside, .story .propostas, .story .tom > p,
-  .story .partilhar, .story .card-botao, .story .decl .fonte, .story .decl .ctx, .story .filtros, .story .destaques, .story .revisao, .story .novos, .story details summary { display: none !important; }
+  .story .como-botao, .overlay .como-botao, .story .partilhar, .story .card-botao, .story .decl .fonte, .story .decl .ctx, .story .filtros, .story .destaques, .story .revisao, .story .novos, .story details summary { display: none !important; }
   .story .fatos > li:not(:first-child) { display: none; }
   .story h2.secao::after { content: " (o mais recente)"; font-weight: 400; color: var(--apagado); font-size: .8em; }
   .story .tom-cands { grid-template-columns: 1fr 1fr; gap: 14px; }
@@ -311,6 +344,7 @@
   <header>
     <h1>Placar da Verdade</h1>
     <div class="sinais">
+      <button class="como-botao" id="como-botao" type="button" aria-haspopup="dialog"><span aria-hidden="true">⚙</span> Como checamos</button>
       <span id="audiencia" hidden></span>
       <div class="status" id="status"><span class="ponto"></span><span id="status-texto">Conectando…</span></div>
     </div>
@@ -412,6 +446,18 @@
     <div class="propostas-cols" id="lista-propostas"></div>
   </section>
   <button class="novos" id="novos" type="button" hidden></button>
+  <dialog class="como" id="como" aria-labelledby="como-titulo">
+    <div class="p-topo"><h2 id="como-titulo">Como uma fala vira veredito</h2><button class="p-fechar" id="como-fechar" type="button" aria-label="Fechar">✕</button></div>
+    <p class="como-sub">Acompanhe uma fala de verdade do debate de 18/10 passando por cada etapa.</p>
+    <ol class="trilha" id="trilha"></ol>
+    <div class="etapa" id="etapa" aria-live="polite"></div>
+    <div class="como-controles">
+      <button class="p-botao" id="como-voltar" type="button">◀ Voltar</button>
+      <button class="p-botao" id="como-play" type="button">▶ Animar</button>
+      <button class="p-botao zap" id="como-avancar" type="button">Próximo ▶</button>
+    </div>
+    <p class="p-nota"><a href="metodologia">Ver tudo em detalhe: as regras do juiz, os erros que corrigimos e os dados abertos →</a></p>
+  </dialog>
   <dialog class="partilha" id="partilha" aria-labelledby="p-titulo">
     <div class="p-topo"><h2 id="p-titulo">Compartilhar este fato</h2><button class="p-fechar" id="p-fechar" type="button" aria-label="Fechar">✕</button></div>
     <p class="p-resumo"><span id="p-veredito"></span> <span id="p-frase"></span></p>

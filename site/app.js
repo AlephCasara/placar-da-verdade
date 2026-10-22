@@ -472,6 +472,57 @@ const telaFim = d => `<div class="aviso tela-fim"><div>
 </div></div>`
 setInterval(() => { if (dados?.encerrado) for (const el of document.querySelectorAll('.regressiva')) el.textContent = falta(dados.encerrado.proximo) }, 1000)
 
+// ---------- "Como checamos": passo a passo com uma fala real do debate de 18/10 ----------
+const ETAPAS = [
+  { i: '🎙', nome: 'Ouvir', titulo: '1. Ouvir', texto: 'O áudio da TV é cortado em pedaços de 10 segundos e transcrito por uma IA que ouve.',
+    ex: ['Transcrição', 'Lula: “É importante lembrar que esse país cresceu dez... sete e meio por cento em 2010”'], modelo: 'gpt-audio-mini' },
+  { i: '👤', nome: 'Quem fala', titulo: '2. Saber quem fala', texto: 'A voz de cada candidato foi cadastrada antes. O sistema compara o timbre, como uma biometria da voz.',
+    ex: ['Resultado', 'A voz bate com a do Lula'], modelo: 'CAM++, roda no computador do operador' },
+  { i: '🧭', nome: 'Separar', titulo: '3. Separar o que importa', texto: 'Um classificador mede o tom da fala. O que é só cumprimento ou regra do debate para aqui.',
+    ex: ['Tom', 'Balanço: fala do que já fez no governo → segue para a próxima etapa'], modelo: 'Jev' },
+  { i: '✍', nome: 'Escolher', titulo: '4. Escolher o que checar', texto: 'Uma IA lê como um editor e anota só o que dá para checar: números, dados, leis. Opinião e promessa ficam de fora.',
+    ex: ['Afirmação anotada', 'A economia brasileira cresceu 7,5% em 2010.'], modelo: 'Claude Haiku 5.5' },
+  { i: '🔎', nome: 'Buscar', titulo: '5. Buscar as provas', texto: 'A afirmação é pesquisada na web. Só vale o que foi publicado até aquele momento, e sites de partido ficam de fora (dos dois lados).',
+    ex: ['Prova encontrada', 'IBGE e Banco Central: o PIB de 2010 cresceu 7,5%'], modelo: 'busca Parallel' },
+  { i: '⚖', nome: 'Julgar', titulo: '6. Julgar', texto: 'O juiz lê só as provas e aplica as mesmas regras para os dois candidatos. Só pode citar um link que veio da busca.',
+    ex: ['Veredito', '✅ Verdadeiro: o PIB cresceu 7,5% em 2010 (IBGE)'], modelo: 'Gemini 3.8 Flash' },
+  { i: '🎧', nome: 'Conferir', titulo: '7. Conferir o áudio', texto: 'Antes de publicar um falso ou impreciso, outros modelos ouvem o trecho de novo para confirmar a frase exata.',
+    ex: ['Por que isso existe', 'No domingo, o robô antigo escreveu “10,5%” e deu Falso. A revisão ouviu de novo: Lula gaguejou e disse sete e meio. Agora essa conferência acontece antes de publicar.'], modelo: 'gpt-audio-mini, Gemini Flash Lite, gpt-audio e Claude Sonnet' },
+  { i: '📲', nome: 'Publicar', titulo: '8. Publicar', texto: 'O fato aparece no site cerca de 30 segundos depois da TV, com a frase dita, os dados e a fonte. Depois do debate, tudo é revisado de novo.',
+    ex: ['No site', 'Card “Verdadeiro · Lula · A economia brasileira cresceu 7,5% em 2010”, com a fonte e o botão de compartilhar'], modelo: 'revisão pós-debate: Claude Opus 5.5' },
+]
+let passo = 0, animando = null
+function mostrarPasso(n) {
+  passo = Math.max(0, Math.min(ETAPAS.length - 1, n))
+  const e = ETAPAS[passo]
+  $('trilha').style.setProperty('--feito', passo / (ETAPAS.length - 1))
+  $('trilha').innerHTML = ETAPAS.map((x, i) => `<li><button type="button" data-passo="${i}" class="${i < passo ? 'feito' : ''}" ${i === passo ? 'aria-current="step"' : ''} aria-label="Etapa ${i + 1}: ${x.nome}"><span aria-hidden="true">${x.i}</span>${x.nome}</button></li>`).join('')
+  $('etapa').innerHTML = `<h3>${e.titulo}</h3><p>${e.texto}</p><div class="exemplo"><b>${e.ex[0]}</b>${esc(e.ex[1])}</div><p class="modelo">IA usada: ${e.modelo}</p>`
+  $('como-voltar').disabled = passo === 0
+  $('como-avancar').textContent = passo === ETAPAS.length - 1 ? 'Recomeçar ↺' : 'Próximo ▶'
+}
+function pararAnimacao() { clearInterval(animando); animando = null; $('como-play').textContent = '▶ Animar' }
+$('como-botao').onclick = () => { pararAnimacao(); mostrarPasso(0); $('como').showModal() }
+$('como-fechar').onclick = () => $('como').close()
+$('como').addEventListener('close', pararAnimacao)
+$('como').addEventListener('click', e => {
+  if (e.target === $('como')) return $('como').close() // clique fora fecha
+  const b = e.target.closest('[data-passo]')
+  if (b) { pararAnimacao(); mostrarPasso(+b.dataset.passo) }
+})
+$('como-voltar').onclick = () => { pararAnimacao(); mostrarPasso(passo - 1) }
+$('como-avancar').onclick = () => { pararAnimacao(); mostrarPasso(passo === ETAPAS.length - 1 ? 0 : passo + 1) }
+$('como-play').onclick = () => {
+  if (animando) return pararAnimacao()
+  if (passo === ETAPAS.length - 1) mostrarPasso(0)
+  $('como-play').textContent = '❚❚ Pausar'
+  animando = setInterval(() => passo === ETAPAS.length - 1 ? pararAnimacao() : mostrarPasso(passo + 1), 3500)
+}
+$('como').addEventListener('keydown', e => {
+  if (e.key === 'ArrowRight') { pararAnimacao(); mostrarPasso(passo + 1) }
+  if (e.key === 'ArrowLeft') { pararAnimacao(); mostrarPasso(passo - 1) }
+})
+
 // Quantas pessoas estão com o site aberto agora e quantas visitas já teve
 function audiencia(espera = 2000, primeira = true) {
   if (LOCAL || OVERLAY) return // overlay fica aberto horas no OBS do streamer: não conta como pessoa assistindo
