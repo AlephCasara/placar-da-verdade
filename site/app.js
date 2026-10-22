@@ -483,7 +483,7 @@ const ETAPAS = [
   { i: '✍', nome: 'Escolher', titulo: '4. Escolher o que checar', texto: 'Uma IA lê como um editor e anota só o que dá para checar: números, dados, leis. Opinião e promessa ficam de fora.',
     ex: ['Afirmação anotada', 'A economia brasileira cresceu 7,5% em 2010.'], modelo: 'Claude Haiku 5.5' },
   { i: '🔎', nome: 'Buscar', titulo: '5. Buscar as provas', texto: 'A afirmação é pesquisada na web. Só vale o que foi publicado até aquele momento, e sites de partido ficam de fora (dos dois lados).',
-    ex: ['Prova encontrada', 'IBGE e Banco Central: o PIB de 2010 cresceu 7,5%'], modelo: 'busca Parallel' },
+    ex: ['Prova encontrada', 'IBGE e Banco Central: o PIB de 2010 cresceu 7,5%'], modelo: 'busca Parallel e Perplexity Sonar' },
   { i: '⚖', nome: 'Julgar', titulo: '6. Julgar', texto: 'O juiz lê só as provas e aplica as mesmas regras para os dois candidatos. Só pode citar um link que veio da busca.',
     ex: ['Veredito', '✅ Verdadeiro: o PIB cresceu 7,5% em 2010 (IBGE)'], modelo: 'Gemini 3.8 Flash' },
   { i: '🎧', nome: 'Conferir', titulo: '7. Conferir o áudio', texto: 'Antes de publicar um falso ou impreciso, outros modelos ouvem o trecho de novo para confirmar a frase exata.',
