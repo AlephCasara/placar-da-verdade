@@ -57,9 +57,9 @@
     <ol class="etapas">
       <li><div><b>Ouvir.</b> O áudio da transmissão é cortado em pedaços de 10 segundos e transcrito. <span class="modelo">Modelo: gpt-audio-mini (OpenAI), com uma lista de nomes do debate. Reserva: Whisper large-v3 turbo.</span></div></li>
       <li><div><b>Saber quem fala.</b> A voz de cada candidato foi cadastrada antes. Um modelo compara o timbre de cada trecho com as vozes cadastradas, como uma biometria. Roda no computador do operador, sem enviar a voz para fora. <span class="modelo">Modelo: CAM++ (3D-Speaker).</span></div></li>
-      <li><div><b>Separar o que importa.</b> Um classificador mede o tom (proposta, ataque, defesa, balanço ou só conversa). Trecho que é só conversa nem segue adiante. <span class="modelo">Modelo: Jev (Typesafe).</span></div></li>
-      <li><div><b>Escolher o que vale checar.</b> Uma IA lê o trecho como um editor e anota afirmações checáveis (números, dados, atos de governo, leis), propostas concretas e ataques. Retórica, opinião e promessa não viram checagem. <span class="modelo">Modelo: Claude Haiku 5.5 (Anthropic).</span></div></li>
-      <li><div><b>Buscar as provas.</b> A afirmação é pesquisada na web. Só vale o que foi publicado até aquele momento, e fontes de partidos e de veículos militantes dos dois lados ficam de fora (lista abaixo). <span class="modelo">Busca: Parallel (via Gemini 2.5 Flash Lite) e Perplexity Sonar, que lê as páginas inteiras e resume o dado com as fontes.</span></div></li>
+      <li><div><b>Separar o que importa.</b> Um classificador mede o tom (proposta, ataque, defesa, balanço ou só conversa). Ele não escolhe um rótulo só: dá a chance de cada tipo, e o tempo de fala é dividido nessa proporção. Um trecho de 10 segundos que é 70% ataque e 30% proposta conta 7 segundos de ataque e 3 de proposta. Trecho que é só conversa nem segue adiante. <span class="modelo">Modelo: Jev (Typesafe).</span></div></li>
+      <li><div><b>Escolher o que vale checar.</b> Uma IA lê o trecho como um editor e anota afirmações checáveis (números, dados, atos de governo, leis), propostas concretas e ataques. Retórica, opinião e promessa não viram checagem. O dado específico é mantido: "recorde de mulher assassinada" é checado como tal, não como "criminalidade" em geral. <span class="modelo">Modelo: Claude Haiku 5.5 (Anthropic).</span></div></li>
+      <li><div><b>Buscar as provas.</b> A afirmação é pesquisada na web. Só vale o que foi publicado até aquele momento, e fontes de partidos e de veículos militantes dos dois lados ficam de fora (lista abaixo). A busca pede de preferência dado oficial (IBGE, Banco Central, TSE, gov.br, Congresso, STF) ou imprensa. Não usamos uma lista fechada de agências: muitos fatos do debate só aparecem em órgãos públicos ou em reportagens, e o veredito sempre mostra a fonte para você julgar. <span class="modelo">Busca: Parallel (via Gemini 2.5 Flash Lite) e Perplexity Sonar, que lê as páginas inteiras e resume o dado com as fontes.</span></div></li>
       <li><div><b>Julgar.</b> Um juiz lê só as provas encontradas e dá o veredito com as regras abaixo. Ele só pode citar um link que veio da busca: nunca um endereço inventado. <span class="modelo">Modelo: Gemini 3.8 Flash (Google).</span></div></li>
       <li><div><b>Conferir o áudio.</b> Antes de publicar um <span class="tecla f">Falso</span> ou <span class="tecla i">Impreciso</span>, o trecho é ouvido de novo por dois modelos de empresas diferentes. Se discordarem, um terceiro desempata. Sem maioria, outra IA lê as versões e decide se publica, corrige a frase ou deixa o fato "em revisão", fora do placar. <span class="modelo">Modelos: gpt-audio-mini, Gemini 3.5 Flash Lite, gpt-audio e Claude Sonnet 5.5.</span></div></li>
       <li><div><b>Fala repetida.</b> Se o candidato repete algo já checado num debate anterior, o veredito revisado é reaproveitado e o card avisa ("já checado em").</div></li>
@@ -77,12 +77,15 @@
       <li>Opinião, juízo de valor ou comparação vaga que não dá para medir é "sem dados".</li>
       <li>Se as provas não falam exatamente do fato afirmado (outro período, outro dado), é "sem dados".</li>
       <li>Número na mesma direção mas fora da margem é impreciso. Falso é quando o fato não aconteceu, aconteceu ao contrário ou o número é muito diferente.</li>
-      <li>Afirmação com várias partes é julgada pelo ponto principal.</li>
+      <li>Afirmação com várias partes é julgada pelo ponto principal. Se a maior parte está certa e uma parte está errada, é impreciso, nunca falso.</li>
       <li>Erro de fala evidente, com os demais dados certos (dizer 2003 quando os números são de 2023), é impreciso, nunca falso.</li>
       <li>Se a afirmação repete o que um áudio, documento ou pessoa disse, vale se o conteúdo está comprovado: acusação sem prova é impreciso.</li>
       <li>"Dívida pública" sem especificar é a dívida bruta do governo geral (Banco Central).</li>
       <li>Promessa, meta futura ou opinião pura é descartada: não entra no placar.</li>
+      <li>A frase é julgada pelo sentido que um ouvinte comum entende, não pela leitura mais literal possível ("X% dos eleitores do grupo Y votaram nele" fala de quem votou, não de quem nem pode votar).</li>
     </ol>
+    <h3>De onde vieram as provas</h3>
+    <p>No debate de 18/10, das 75 checagens com fonte, 41 (55%) citaram órgãos públicos: Agência Brasil, gov.br, Planalto, Senado, IBGE, STF, Banco Central, TCU, CNJ. O resto veio de imprensa variada (CNN, Estadão, Gazeta do Povo, Folha, O Tempo, Correio Braziliense, G1, CartaCapital, entre outros), sem nenhum veículo dominando. A lista completa está nos dados abertos.</p>
     <h3>Fontes excluídas (dos dois lados)</h3>
     <p><code>pt.org.br</code> <code>institutolula.org</code> <code>fpabramo.org.br</code> <code>vermelho.org.br</code> <code>brasil247.com</code> <code>revistaforum.com.br</code> <code>diariodocentrodomundo.com.br</code> <code>brasildefato.com.br</code> · <code>pl.org.br</code> <code>fundacaoalvarovalle.org.br</code> <code>flaviobolsonaro.com.br</code> <code>revistaoeste.com</code> <code>brasilparalelo.com.br</code> <code>jornaldacidadeonline.com.br</code> <code>tercalivre.com.br</code></p>
   </section>
@@ -95,6 +98,7 @@
       <tbody>
         <tr><td>Transcrição trocando números e nomes</td><td>Modelo de transcrição novo e conferência do áudio antes de publicar falso ou impreciso</td></tr>
         <tr><td>Juiz rígido demais ou brando demais</td><td>Regras 6 a 9 acima</td></tr>
+        <tr><td>Fala resumida de forma genérica e juiz lendo ao pé da letra (apontado por quem assistiu)</td><td>Dado específico mantido na leitura, regra 5 reforçada e regra 10</td></tr>
         <tr><td>Mesma fala contada duas ou três vezes</td><td>Trava de repetição vale para o debate inteiro</td></tr>
         <tr><td>Promessa e opinião tratadas como fato</td><td>Descartadas na leitura e no julgamento</td></tr>
         <tr><td>Parte das checagens não aparecia no site</td><td>Todas aparecem</td></tr>

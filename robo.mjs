@@ -214,6 +214,8 @@ Ignore retórica e frases de efeito ("não sou candidato de primeira viagem"), o
 - Não repita o que já está em AFIRMAÇÕES JÁ CHECADAS (o trecho pode repetir falas anteriores).
 - tema: 1 a 3 palavras. Use um nome de TEMAS EXISTENTES só se for exatamente o mesmo assunto (dívida pública não é "dívida com FMI"); senão crie um novo.
 - afirmacao: o que o candidato afirmou, em 1 frase na 3ª pessoa, corrigindo erros óbvios de transcrição, sem mudar o sentido.
+  Mantenha o dado específico que ele disse (qual crime, qual grupo, qual período, qual valor): "recorde de mulher assassinada" não vira "recorde de criminalidade".
+  Se a fala enumera vários fatos diferentes, separe em afirmações (as 2 mais checáveis), em vez de resumir tudo numa só.
 - literal: o pedaço EXATO do TRECHO com a afirmação, copiado sem mudar nada (até ~40 palavras).
 - anterior: se for o MESMO fato de um item de CHECADAS EM DEBATES ANTERIORES (mesmo assunto e mesmos números, mesmo com outras palavras), o número dele; senão null. Na dúvida, null.
   Se a fala tiver uma parte A MAIS que o item anterior não cobre, separe em duas afirmações: a parte igual (com anterior) e a parte nova (anterior null).
@@ -291,12 +293,14 @@ const REGRAS = 'Você é um checador de fatos imparcial. Julgue se o CONTEÚDO d
   '(2) opinião, juízo de valor ou comparação vaga que não dá para medir ("fez mais do que todos", "política de X") é sem_dados. ' +
   '(3) se as PROVAS não falam exatamente do fato afirmado (outro período, outro dado, outra votação), é sem_dados: não achar a prova NÃO torna a afirmação falsa nem imprecisa. ' +
   '(4) número na mesma direção mas fora da margem (ex.: 20 anos quando foram 17) é impreciso; falso é quando o fato não aconteceu, aconteceu ao contrário ou o número é muito diferente. ' +
-  '(5) afirmação com várias partes: julgue pelo ponto principal; detalhe secundário levemente diferente não rebaixa o veredito. ' +
+  '(5) afirmação com várias partes: julgue pelo ponto principal; detalhe secundário levemente diferente não rebaixa o veredito. Se a maior parte está certa e uma parte está errada, é impreciso, nunca falso. ' +
   // Regras de 19/10, depois da auditoria do debate da Band
   '(6) erro de fala evidente, com os demais dados certos (ex.: dizer 2003 quando os números são de 2023), é impreciso, nunca falso. ' +
   '(7) se a afirmação repete o que um áudio, documento ou pessoa disse, julgue se o CONTEÚDO está comprovado: acusação sem prova é impreciso. ' +
   '(8) "dívida pública" sem especificar = dívida bruta do governo geral (Banco Central). ' +
   '(9) promessa, meta futura ou opinião pura não é checável: responda veredito "descartar". ' +
+  // Regra de 22/10, após comentários do público: o juiz lia ao pé da letra demais
+  '(10) julgue pelo sentido que um ouvinte comum entende, não pela leitura mais literal possível: se o dado citado está certo no sentido usual, não rebaixe por uma interpretação que a frase não pretendia (ex.: "X% dos eleitores do grupo Y votaram nele" fala de quem votou, não de quem nem pode votar). ' +
   'Antes de rebaixar por causa de um número, calcule a diferença percentual em relação ao dado oficial e aplique a regra 1.'
 
 // Perplexity como investigador: pesquisa, lê as páginas inteiras (a busca acima só traz ~1.500 caracteres de cada uma)
