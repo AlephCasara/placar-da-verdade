@@ -7,6 +7,8 @@
 // Uso:  node --env-file=.env robo.mjs <url-youtube> --a "Nome A" --b "Nome B" [--inicio 4230] [--local] [--continuar]
 // --continuar: se o robô cair no meio do debate, volta de onde parou (lê tmp/placar.json e tmp/gasto.json)
 // --rejulgar (com --continuar): refaz os vereditos já publicados com as regras atuais do juiz, sem parar de ouvir a live
+// --entrada: ouve um dispositivo de áudio do PC em vez do YouTube (debate que não passa no YouTube, ex.: Globoplay tocando
+//   no navegador com o som indo para o VB-Cable). Ex.: --entrada "CABLE Output (VB-Audio Virtual Cable)". Sem URL do YouTube.
 // --limite: teto de gasto com IA em dólares (padrão 2). Em 80% para de checar fatos; em 100% para tudo.
 // Vídeo gravado vira simulação: o robô "vive" na data e hora em que o debate passou ao vivo.
 // Teclas: a = automático (voz) · 1 / 2 / 0 = força candidato A / B / mediador
@@ -23,7 +25,8 @@ const { values: arg, positionals } = parseArgs({ allowPositionals: true, options
   local: { type: 'boolean', default: false },    // grava em site/placar.json em vez do R2
   continuar: { type: 'boolean', default: false },
   limite: { type: 'string', default: '2' },
-  rejulgar: { type: 'boolean', default: false }, // com --continuar: julga de novo os fatos já checados com as regras atuais
+  rejulgar: { type: 'boolean', default: false },
+  entrada: { type: 'string' },                    // dispositivo de áudio do Windows (dshow) no lugar do YouTube // com --continuar: julga de novo os fatos já checados com as regras atuais
 } })
 // Tudo que aparece na tela também vai para tmp/robo.log, para acompanhar o debate de fora (bugs, quedas, gasto)
 mkdirSync('tmp', { recursive: true })
@@ -36,7 +39,7 @@ for (const k of ['log', 'error']) {
 for (const ev of ['uncaughtException', 'unhandledRejection']) process.on(ev, e => console.error('\nerro inesperado:', e?.stack ?? e))
 
 const URL_VIDEO = positionals[0]
-if (!URL_VIDEO) throw new Error('Passe a URL do YouTube')
+if (!URL_VIDEO && !arg.entrada) throw new Error('Passe a URL do YouTube (ou --entrada com o dispositivo de áudio)')
 
 const KEY = process.env.OPENROUTER_API_KEY
 const BUCKET = 'placar-debate'
@@ -62,10 +65,12 @@ function ytdlp(...a) {
     catch (e) { if (i === 4) throw e; console.error(`yt-dlp falhou (tentativa ${i}), tentando de novo...`) }
   }
 }
-const [aoVivo, inicioLive] = ytdlp('--print', '%(is_live)s %(release_timestamp)s').split(' ')
+const [aoVivo, inicioLive] = arg.entrada ? ['True', 'NA'] : ytdlp('--print', '%(is_live)s %(release_timestamp)s').split(' ')
 const placar = {
   atualizado: 0,
-  video: { id: new URL(URL_VIDEO).searchParams.get('v') ?? URL_VIDEO.split('/').pop(), ao_vivo: aoVivo === 'True', inicio: +arg.inicio, t0: Date.now(),
+  // Sem YouTube não há vídeo para o site embutir: no lugar dele, o aviso de onde assistir
+  ...(arg.entrada && { aviso: 'Assista na TV Globo, no g1 ou no Globoplay. A checagem aparece aqui cerca de 30 segundos depois da TV.' }),
+  video: { id: arg.entrada ? null : new URL(URL_VIDEO).searchParams.get('v') ?? URL_VIDEO.split('/').pop(), ao_vivo: aoVivo === 'True', inicio: +arg.inicio, t0: Date.now(),
     // comeco: início do debate ("rolando há" e linha do tempo). Ao vivo é quando o robô liga, porque a live da TV
     // costuma abrir horas antes com pré-show; na reprise é o início da transmissão gravada
     comeco: aoVivo !== 'True' && inicioLive !== 'NA' ? +inicioLive * 1000 : Date.now() },
@@ -525,7 +530,10 @@ function ouvir() {
   const saida = ['-vn', '-ac', '1', '-ar', '16000', '-c:a', 'pcm_s16le', '-f', 'segment', '-segment_time', `${SEGUNDOS}`,
     '-segment_start_number', `${numero}`, '-segment_list', 'pipe:1', '-segment_list_type', 'flat', 'tmp/seg/%06d.wav']
   let ffmpeg
-  if (placar.video.ao_vivo) {
+  if (arg.entrada) {
+    ffmpeg = spawn('ffmpeg', ['-v', 'error', '-f', 'dshow', '-i', `audio=${arg.entrada}`, ...saida], { stdio: ['ignore', 'pipe', 'inherit'] })
+    ffmpeg.on('error', e => console.error('\nffmpeg:', e.message))
+  } else if (placar.video.ao_vivo) {
     const yt = spawn('yt-dlp', ['--no-update', '-q', '-f', 'bestaudio/best', '-o', '-', URL_VIDEO], { stdio: ['ignore', 'pipe', 'inherit'] })
     ffmpeg = spawn('ffmpeg', ['-v', 'error', '-i', 'pipe:0', ...saida], { stdio: ['pipe', 'pipe', 'inherit'] })
     yt.stdout.pipe(ffmpeg.stdin)
@@ -558,6 +566,7 @@ function ouvir() {
     })
   })
   ffmpeg.on('close', () => {
+    if (arg.entrada) { console.error('\ncaptura de áudio parou; tentando de novo em 3s...'); return setTimeout(ouvir, 3000) }
     if (placar.video.ao_vivo) {
       // Live que acabou vira gravação: reconectar baixaria o debate inteiro de novo e checaria tudo outra vez
       let estado = 'is_live'
